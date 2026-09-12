@@ -1,0 +1,31 @@
+{
+  "name": "nice-pos-backend",
+  "version": "1.0.0",
+  "description": "Backend API para Inventario y Punto de Venta (POS) Joyería Nice",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [
+    "nice",
+    "pos",
+    "inventario",
+    "express",
+    "mysql"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.24.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
