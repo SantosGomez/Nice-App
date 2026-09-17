@@ -30,25 +30,18 @@
 
         <q-space />
 
-        <!-- Selector Rápido de Empresaria Activa -->
-        <q-btn
-          flat
-          rounded
-          no-caps
-          class="q-px-sm q-py-none text-white glass-panel-dark gold-border q-mr-sm"
-          @click="mostrarDialogoEmpresarias = true"
-        >
-          <q-avatar size="26px" color="secondary" text-color="primary" icon="person" class="q-mr-xs" />
+        <!-- Badge de Usuario Activo en Sesión (Solo lectura) -->
+        <div class="row items-center q-px-sm q-py-xs text-white glass-panel-dark gold-border rounded-borders q-mr-sm">
+          <q-avatar size="26px" color="secondary" text-color="primary" icon="person" class="q-mr-xs shadow-1" />
           <div class="text-left gt-xs">
             <div class="text-caption text-weight-bold line-clamp-1">
-              {{ empresariaStore.empresariaActiva?.Nombre || 'Seleccionar' }}
+              {{ authStore.nombreUsuario }}
             </div>
             <div class="text-caption text-gold" style="font-size: 0.68rem;">
-              Descuento: {{ empresariaStore.descuentoActivo }}%
+              {{ authStore.rolUsuario }} • {{ authStore.descuentoUsuario }}% desc.
             </div>
           </div>
-          <q-icon name="arrow_drop_down" class="q-ml-xs" />
-        </q-btn>
+        </div>
 
         <!-- Indicador de Red (Online / Offline) -->
         <q-chip
@@ -237,48 +230,6 @@
       </div>
     </q-drawer>
 
-    <!-- Diálogo para cambiar de Empresaria Activa -->
-    <q-dialog v-model="mostrarDialogoEmpresarias">
-      <q-card style="min-width: 340px; max-width: 500px; border-radius: 16px;">
-        <q-card-section class="gradient-navy text-white row items-center">
-          <div class="text-h6 brand-font text-gold">Seleccionar Distribuidora Nice</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
-
-        <q-card-section class="q-pt-md">
-          <div class="text-caption text-grey-7 q-mb-md">
-            Elige la empresaria para calcular el stock local y los márgenes de descuento correspondientes:
-          </div>
-
-          <q-list bordered separator class="rounded-borders">
-            <q-item
-              v-for="emp in empresariaStore.empresarias"
-              :key="emp.IdEmpresaria"
-              clickable
-              v-ripple
-              :active="emp.IdEmpresaria === empresariaStore.empresariaActiva?.IdEmpresaria"
-              active-class="bg-amber-1 text-primary text-weight-bold"
-              @click="seleccionarEmpresaria(emp)"
-            >
-              <q-item-section avatar>
-                <q-avatar color="primary" text-color="gold" icon="person" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ emp.Nombre }}</q-item-label>
-                <q-item-label caption>EIN: {{ emp.EIN }} | Tel: {{ emp.Telefono || 'Sin teléfono' }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-badge color="secondary" text-color="primary" class="text-weight-bold">
-                  {{ emp.PorcentajeDescuento }}% Descuento
-                </q-badge>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
-
     <!-- Contenido de las Páginas -->
     <q-page-container>
       <router-view />
@@ -301,31 +252,14 @@ const networkStore = useNetworkStore();
 const authStore = useAuthStore();
 
 const leftDrawerOpen = ref(false);
-const mostrarDialogoEmpresarias = ref(false);
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-function seleccionarEmpresaria(emp) {
-  empresariaStore.setEmpresariaActiva(emp);
-  mostrarDialogoEmpresarias.value = false;
-  $q.notify({
-    type: 'positive',
-    message: `Empresaria activa: ${emp.Nombre} (${emp.PorcentajeDescuento}% desc.)`,
-    position: 'top',
-    timeout: 2000
-  });
-
-  // Re-sincronizar stock de la nueva empresaria
-  if (networkStore.isOnline) {
-    networkStore.syncNow(emp.IdEmpresaria);
-  }
-}
-
 async function sincronizarManual() {
   try {
-    await networkStore.syncNow(empresariaStore.empresariaActiva?.IdEmpresaria || 1);
+    await networkStore.syncNow(authStore.usuario?.IdEmpresaria || 1);
     $q.notify({
       type: 'positive',
       icon: 'cloud_done',

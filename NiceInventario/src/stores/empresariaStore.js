@@ -3,14 +3,9 @@ import api from '../services/api.js';
 
 export const useEmpresariaStore = defineStore('empresaria', {
   state: () => ({
-    // Empresaria seleccionada actualmente en la tablet
-    empresariaActiva: {
-      IdEmpresaria: 1,
-      Nombre: 'Empresaria Principal',
-      PorcentajeDescuento: 40.0,
-      Estado: 'Activa'
-    },
-    // Catálogo de todas las empresarias disponibles
+    // Empresaria vinculada a la sesión autenticada
+    empresariaActiva: null,
+    // Catálogo de empresarias disponibles para consultas
     empresarias: []
   }),
 
@@ -25,6 +20,8 @@ export const useEmpresariaStore = defineStore('empresaria', {
           ...empresaria,
           PorcentajeDescuento: Number(empresaria.PorcentajeDescuento || 25.0)
         };
+      } else {
+        this.empresariaActiva = null;
       }
     },
 
@@ -33,14 +30,14 @@ export const useEmpresariaStore = defineStore('empresaria', {
         const response = await api.get('/empresarias?estado=Activa');
         if (response.data && response.data.success) {
           this.empresarias = response.data.data;
-          // Si la empresaria activa actual no está en la lista o cambió, actualizar
-          const encontrada = this.empresarias.find(
-            (e) => e.IdEmpresaria === this.empresariaActiva.IdEmpresaria
-          );
-          if (encontrada) {
-            this.setEmpresariaActiva(encontrada);
-          } else if (this.empresarias.length > 0) {
-            this.setEmpresariaActiva(this.empresarias[0]);
+          // Si el usuario activo está en la lista actualizada, refrescar sus datos locales
+          if (this.empresariaActiva?.IdEmpresaria) {
+            const encontrada = this.empresarias.find(
+              (e) => e.IdEmpresaria === this.empresariaActiva.IdEmpresaria
+            );
+            if (encontrada) {
+              this.setEmpresariaActiva(encontrada);
+            }
           }
         }
       } catch (err) {
@@ -49,7 +46,7 @@ export const useEmpresariaStore = defineStore('empresaria', {
     }
   },
 
-  persist: true // Guardar selección en LocalStorage automáticamente
+  persist: true
 });
 
 export default useEmpresariaStore;

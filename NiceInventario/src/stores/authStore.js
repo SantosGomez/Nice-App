@@ -71,6 +71,8 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = null;
       this.usuario = null;
+      const empresariaStore = useEmpresariaStore();
+      empresariaStore.setEmpresariaActiva(null);
     },
 
     /**
@@ -84,9 +86,7 @@ export const useAuthStore = defineStore('auth', {
           PorcentajeDescuento: Number(nuevoUsuario.PorcentajeDescuento || 25.0)
         };
         const empresariaStore = useEmpresariaStore();
-        if (empresariaStore.empresariaActiva?.IdEmpresaria === this.usuario.IdEmpresaria) {
-          empresariaStore.setEmpresariaActiva(this.usuario);
-        }
+        empresariaStore.setEmpresariaActiva(this.usuario);
       }
     },
 
