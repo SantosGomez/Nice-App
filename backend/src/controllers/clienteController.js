@@ -6,12 +6,12 @@ import { ClienteModel } from '../models/clienteModel.js';
 export const ClienteController = {
   /**
    * GET /api/clientes
-   * Obtiene la lista de clientes con soporte para búsqueda.
+   * Obtiene la lista de clientes con soporte para búsqueda y filtro por empresaria.
    */
   async getClientes(req, res) {
     try {
-      const { search } = req.query;
-      const clientes = await ClienteModel.getAll({ search });
+      const { search, empresariaId } = req.query;
+      const clientes = await ClienteModel.getAll({ search, empresariaId });
 
       return res.status(200).json({
         success: true,
@@ -64,7 +64,7 @@ export const ClienteController = {
    */
   async createCliente(req, res) {
     try {
-      const { Nombre, Telefono, Nota } = req.body;
+      const { Nombre, Telefono, Nota, EmpresariaId } = req.body;
 
       if (!Nombre || Nombre.trim() === '') {
         return res.status(400).json({
@@ -76,7 +76,8 @@ export const ClienteController = {
       const nuevoCliente = await ClienteModel.create({
         Nombre: Nombre.trim(),
         Telefono: Telefono ? Telefono.trim() : null,
-        Nota: Nota ? Nota.trim() : null
+        Nota: Nota ? Nota.trim() : null,
+        EmpresariaId: EmpresariaId ? Number(EmpresariaId) : null
       });
 
       return res.status(201).json({
@@ -101,12 +102,13 @@ export const ClienteController = {
   async updateCliente(req, res) {
     try {
       const { id } = req.params;
-      const { Nombre, Telefono, Nota } = req.body;
+      const { Nombre, Telefono, Nota, EmpresariaId } = req.body;
 
       const updated = await ClienteModel.update(id, {
         Nombre: Nombre ? Nombre.trim() : undefined,
         Telefono: Telefono !== undefined ? (Telefono ? Telefono.trim() : null) : undefined,
-        Nota: Nota !== undefined ? (Nota ? Nota.trim() : null) : undefined
+        Nota: Nota !== undefined ? (Nota ? Nota.trim() : null) : undefined,
+        EmpresariaId: EmpresariaId !== undefined ? (EmpresariaId ? Number(EmpresariaId) : null) : undefined
       });
 
       if (!updated) {
@@ -163,3 +165,5 @@ export const ClienteController = {
     }
   }
 };
+
+export default ClienteController;

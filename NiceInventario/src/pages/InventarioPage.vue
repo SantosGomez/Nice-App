@@ -457,16 +457,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useQuasar } from 'quasar';
 import { Html5Qrcode } from 'html5-qrcode';
 import db from '../db/index.js';
 import api from '../services/api.js';
 import { useEmpresariaStore } from '../stores/empresariaStore.js';
+import { useAuthStore } from '../stores/authStore.js';
 import { useNetworkStore } from '../stores/networkStore.js';
 
 const $q = useQuasar();
 const empresariaStore = useEmpresariaStore();
+const authStore = useAuthStore();
 const networkStore = useNetworkStore();
 
 const productos = ref([]);
@@ -512,12 +514,57 @@ const columnasTabla = [
 
 async function cargarInventario() {
   try {
-    const empId = empresariaStore.empresariaActiva?.IdEmpresaria || 1;
+    const empId = empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2;
+    if (networkStore.isOnline) {
+      try {
+        const resp = await api.get(`/inventario/stock/${empId}`);
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          const rawData = resp.data.data;
+          const prods = rawData.map((p) => ({
+            id: String(p.id || p.ProductoId).trim(),
+            sku: p.sku,
+            CodigoQr: p.CodigoQr || p.sku,
+            Nombre: p.Nombre,
+            Categoria: p.Categoria,
+            Catalogo: p.Catalogo,
+            Precio: Number(p.Precio),
+            PrecioCosto: Number(p.PrecioCosto || 0),
+            ImgURL: p.ImgURL,
+            Stock: Number(p.Stock || 0)
+          }));
+
+          productos.value = prods;
+
+          // Actualizar caché de Dexie en segundo plano
+          await db.productos.bulkPut(prods);
+          const stockItems = prods.map((p) => ({
+            EmpresariaId: Number(empId),
+            ProductoId: p.id,
+            Stock: Number(p.Stock),
+            updated_at: new Date().toISOString()
+          }));
+          await db.stock_empresarias.bulkPut(stockItems);
+          return;
+        }
+      } catch (apiErr) {
+        console.warn('No se pudo obtener inventario online, cargando local:', apiErr.message);
+      }
+    }
+
     productos.value = await db.obtenerCatalogoConStock(empId);
   } catch (err) {
     console.error('Error cargando inventario:', err);
   }
 }
+
+watch(
+  () => empresariaStore.empresariaActiva?.IdEmpresaria,
+  (newId) => {
+    if (newId) {
+      cargarInventario();
+    }
+  }
+);
 
 const productosFiltrados = computed(() => {
   return productos.value.filter((p) => {

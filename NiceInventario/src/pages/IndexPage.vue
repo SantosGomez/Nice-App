@@ -409,16 +409,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useQuasar } from 'quasar';
 import db from '../db/index.js';
+import api from '../services/api.js';
 import { usePosStore } from '../stores/posStore.js';
 import { useEmpresariaStore } from '../stores/empresariaStore.js';
+import { useAuthStore } from '../stores/authStore.js';
+import { useNetworkStore } from '../stores/networkStore.js';
 import { Html5Qrcode } from 'html5-qrcode';
 
 const $q = useQuasar();
 const posStore = usePosStore();
 const empresariaStore = useEmpresariaStore();
+const authStore = useAuthStore();
+const networkStore = useNetworkStore();
 
 const productos = ref([]);
 const clientes = ref([]);
@@ -433,16 +438,70 @@ const nuevoCliente = ref({ Nombre: '', Telefono: '', Nota: '' });
 const mostrarScanner = ref(false);
 let html5QrCode = null;
 
-// Cargar catálogo local desde Dexie
+// Cargar catálogo local y stock actualizado
 async function cargarCatalogoLocal() {
   try {
-    const empId = empresariaStore.empresariaActiva?.IdEmpresaria || 1;
+    const empId = empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2;
+    if (networkStore.isOnline) {
+      try {
+        const [respStock, respClientes] = await Promise.all([
+          api.get(`/inventario/stock/${empId}`),
+          api.get('/clientes')
+        ]);
+
+        if (respStock.data && respStock.data.success && Array.isArray(respStock.data.data)) {
+          const rawData = respStock.data.data;
+          const prods = rawData.map((p) => ({
+            id: String(p.id || p.ProductoId).trim(),
+            sku: p.sku,
+            CodigoQr: p.CodigoQr || p.sku,
+            Nombre: p.Nombre,
+            Categoria: p.Categoria,
+            Catalogo: p.Catalogo,
+            Precio: Number(p.Precio),
+            PrecioCosto: Number(p.PrecioCosto || 0),
+            ImgURL: p.ImgURL,
+            Stock: Number(p.Stock || 0)
+          }));
+
+          productos.value = prods;
+
+          // Guardar en Dexie
+          await db.productos.bulkPut(prods);
+          const stockItems = prods.map((p) => ({
+            EmpresariaId: Number(empId),
+            ProductoId: p.id,
+            Stock: Number(p.Stock),
+            updated_at: new Date().toISOString()
+          }));
+          await db.stock_empresarias.bulkPut(stockItems);
+        }
+
+        if (respClientes.data && respClientes.data.success && Array.isArray(respClientes.data.data)) {
+          clientes.value = respClientes.data.data;
+          await db.clientes.bulkPut(respClientes.data.data);
+        }
+        return;
+      } catch (apiErr) {
+        console.warn('Fallback a Dexie para catálogo/clientes:', apiErr.message);
+      }
+    }
+
     productos.value = await db.obtenerCatalogoConStock(empId);
     clientes.value = await db.clientes.toArray();
   } catch (err) {
     console.error('Error cargando datos locales:', err);
   }
 }
+
+watch(
+  () => empresariaStore.empresariaActiva?.IdEmpresaria,
+  (newId) => {
+    if (newId) {
+      cargarCatalogoLocal();
+    }
+  }
+);
 
 // Filtro reactivo de productos
 const productosFiltrados = computed(() => {

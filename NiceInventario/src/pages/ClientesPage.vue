@@ -7,7 +7,7 @@
           Directorio de Clientes
         </div>
         <div class="text-caption text-grey-7">
-          Gestiona tus clientas para ventas directas y sistemas de apartado
+          Gestiona tus clientas asignadas a tu cuenta de distribuidora Nice
         </div>
       </div>
 
@@ -17,25 +17,46 @@
         color="primary"
         icon="person_add"
         label="Nuevo Cliente"
-        class="text-weight-bold"
+        class="text-weight-bold shadow-1"
         @click="abrirModalNuevo"
       />
     </div>
 
-    <!-- Buscador -->
+    <!-- Buscador y Filtro por Empresaria (si es Admin) -->
     <q-card flat class="rounded-borders shadow-1 q-mb-md bg-white">
       <q-card-section class="q-pa-sm">
-        <q-input
-          v-model="busqueda"
-          dense
-          outlined
-          rounded
-          clearable
-          placeholder="Buscar por nombre o número de teléfono..."
-          class="bg-grey-1"
-        >
-          <template #prepend><q-icon name="search" color="primary" /></template>
-        </q-input>
+        <div class="row q-col-gutter-sm items-center">
+          <div class="col-12" :class="authStore.esAdmin ? 'col-sm-7' : 'col-sm-12'">
+            <q-input
+              v-model="busqueda"
+              dense
+              outlined
+              rounded
+              clearable
+              placeholder="Buscar por nombre o número de teléfono..."
+              class="bg-grey-1"
+            >
+              <template #prepend><q-icon name="search" color="primary" /></template>
+            </q-input>
+          </div>
+
+          <!-- Filtro Empresaria para Administradores -->
+          <div v-if="authStore.esAdmin" class="col-12 col-sm-5">
+            <q-select
+              v-model="filtroEmpresaria"
+              dense
+              outlined
+              rounded
+              emit-value
+              map-options
+              :options="opcionesFiltroEmpresarias"
+              label="Distribuidora"
+              class="bg-grey-1"
+            >
+              <template #prepend><q-icon name="storefront" color="primary" /></template>
+            </q-select>
+          </div>
+        </div>
       </q-card-section>
     </q-card>
 
@@ -81,8 +102,16 @@
               </q-btn>
             </div>
 
+            <!-- Badge de Empresaria Asignada -->
+            <div class="row items-center q-mt-xs q-gutter-x-xs">
+              <q-badge color="amber-2" text-color="dark" class="text-weight-bold">
+                <q-icon name="person_pin" size="12px" class="q-mr-xs text-primary" />
+                {{ c.EmpresariaNombre || 'Empresaria Nice' }}
+              </q-badge>
+            </div>
+
             <!-- Notas del cliente -->
-            <div v-if="c.Nota" class="q-mt-sm q-pa-xs bg-amber-1 rounded-borders text-caption text-grey-8">
+            <div v-if="c.Nota" class="q-mt-sm q-pa-xs bg-grey-1 rounded-borders text-caption text-grey-8">
               <q-icon name="sticky_note_2" color="warning" class="q-mr-xs" />
               {{ c.Nota }}
             </div>
@@ -143,6 +172,20 @@
             <q-input v-model="formCliente.Telefono" dense outlined placeholder="Ej. 3312345678" class="q-mt-xs" />
           </div>
 
+          <!-- Selector de Empresaria Asignada -->
+          <div class="q-mb-sm">
+            <label class="text-caption text-weight-bold text-grey-8">Distribuidora Asignada *</label>
+            <q-select
+              v-model="formCliente.EmpresariaId"
+              dense
+              outlined
+              emit-value
+              map-options
+              :options="opcionesEmpresariasModal"
+              class="q-mt-xs"
+            />
+          </div>
+
           <div class="q-mb-md">
             <label class="text-caption text-weight-bold text-grey-8">Notas / Preferencias</label>
             <q-input
@@ -160,7 +203,7 @@
             unelevated
             color="primary"
             :label="editando ? 'Guardar Cambios' : 'Registrar Cliente'"
-            class="full-width text-weight-bold text-subtitle1 q-py-sm"
+            class="full-width text-weight-bold text-subtitle1 q-py-sm shadow-1"
             @click="guardarCliente"
           />
         </q-card-section>
@@ -170,43 +213,95 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import db from '../db/index.js';
 import api from '../services/api.js';
 import { usePosStore } from '../stores/posStore.js';
+import { useAuthStore } from '../stores/authStore.js';
+import { useEmpresariaStore } from '../stores/empresariaStore.js';
 import { useNetworkStore } from '../stores/networkStore.js';
 
 const $q = useQuasar();
 const router = useRouter();
 const posStore = usePosStore();
+const authStore = useAuthStore();
+const empresariaStore = useEmpresariaStore();
 const networkStore = useNetworkStore();
 
 const clientes = ref([]);
 const busqueda = ref('');
+const filtroEmpresaria = ref(null);
 const mostrarModal = ref(false);
 const editando = ref(false);
 
 const formCliente = ref({
   IdCliente: null,
+  EmpresariaId: null,
   Nombre: '',
   Telefono: '',
   Nota: ''
 });
 
+const opcionesFiltroEmpresarias = computed(() => {
+  const lista = [{ label: 'Todas las Distribuidoras', value: null }];
+  empresariaStore.empresarias.forEach((e) => {
+    lista.push({ label: `${e.Nombre} (${e.EIN || 'Sin EIN'})`, value: e.IdEmpresaria });
+  });
+  return lista;
+});
+
+const opcionesEmpresariasModal = computed(() => {
+  return empresariaStore.empresarias.map((e) => ({
+    label: `${e.Nombre} (${e.EIN || 'Sin EIN'})`,
+    value: e.IdEmpresaria
+  }));
+});
+
 async function cargarClientes() {
   try {
+    if (networkStore.isOnline) {
+      try {
+        const resp = await api.get('/clientes');
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          clientes.value = resp.data.data;
+          await db.clientes.bulkPut(resp.data.data);
+          return;
+        }
+      } catch (e) {
+        console.warn('Fallback a Dexie para clientes:', e.message);
+      }
+    }
+
     clientes.value = await db.clientes.toArray();
   } catch (err) {
     console.error('Error cargando clientes:', err);
   }
 }
 
+watch(
+  () => empresariaStore.empresariaActiva?.IdEmpresaria,
+  () => {
+    cargarClientes();
+  }
+);
+
 const clientesFiltrados = computed(() => {
-  if (!busqueda.value) return clientes.value;
+  let list = clientes.value;
+
+  if (filtroEmpresaria.value) {
+    list = list.filter((c) => Number(c.EmpresariaId) === Number(filtroEmpresaria.value));
+  } else if (!authStore.esAdmin) {
+    const miEmpId = empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria;
+    if (miEmpId) {
+      list = list.filter((c) => !c.EmpresariaId || Number(c.EmpresariaId) === Number(miEmpId));
+    }
+  }
+
+  if (!busqueda.value) return list;
   const q = busqueda.value.toLowerCase();
-  return clientes.value.filter(
+  return list.filter(
     (c) => c.Nombre?.toLowerCase().includes(q) || c.Telefono?.includes(q)
   );
 });
@@ -222,13 +317,30 @@ function obtenerIniciales(nombre) {
 
 function abrirModalNuevo() {
   editando.value = false;
-  formCliente.value = { IdCliente: null, Nombre: '', Telefono: '', Nota: '' };
+  const defaultEmpId =
+    empresariaStore.empresariaActiva?.IdEmpresaria ||
+    authStore.usuario?.IdEmpresaria ||
+    (empresariaStore.empresarias[0]?.IdEmpresaria ?? 2);
+
+  formCliente.value = {
+    IdCliente: null,
+    EmpresariaId: defaultEmpId,
+    Nombre: '',
+    Telefono: '',
+    Nota: ''
+  };
   mostrarModal.value = true;
 }
 
 function editarCliente(c) {
   editando.value = true;
-  formCliente.value = { ...c };
+  formCliente.value = {
+    IdCliente: c.IdCliente,
+    EmpresariaId: c.EmpresariaId || empresariaStore.empresariaActiva?.IdEmpresaria || 2,
+    Nombre: c.Nombre,
+    Telefono: c.Telefono || '',
+    Nota: c.Nota || ''
+  };
   mostrarModal.value = true;
 }
 
@@ -239,29 +351,38 @@ async function guardarCliente() {
     return;
   }
 
+  const empId = Number(f.EmpresariaId || empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2);
+  const nombreEmpresaria = empresariaStore.empresarias.find((e) => e.IdEmpresaria === empId)?.Nombre || 'Empresaria Nice';
+
   try {
     if (editando.value && f.IdCliente) {
-      await db.clientes.update(f.IdCliente, {
+      const datosActualizar = {
         Nombre: f.Nombre.trim(),
         Telefono: f.Telefono ? f.Telefono.trim() : null,
-        Nota: f.Nota ? f.Nota.trim() : null
-      });
+        Nota: f.Nota ? f.Nota.trim() : null,
+        EmpresariaId: empId,
+        EmpresariaNombre: nombreEmpresaria
+      };
+
+      await db.clientes.update(f.IdCliente, datosActualizar);
 
       if (networkStore.isOnline) {
-        api.put(`/clientes/${f.IdCliente}`, f).catch(() => {});
+        api.put(`/clientes/${f.IdCliente}`, datosActualizar).catch(() => {});
       }
       $q.notify({ type: 'positive', message: 'Cliente actualizado' });
     } else {
       const nuevo = {
+        EmpresariaId: empId,
+        EmpresariaNombre: nombreEmpresaria,
         Nombre: f.Nombre.trim(),
         Telefono: f.Telefono ? f.Telefono.trim() : null,
         Nota: f.Nota ? f.Nota.trim() : null,
         localOnly: 1
       };
-      await db.clientes.add(nuevo);
+      const newId = await db.clientes.add(nuevo);
 
       if (networkStore.isOnline) {
-        api.post('/clientes', nuevo).catch(() => {});
+        api.post('/clientes', { ...nuevo, IdCliente: newId }).catch(() => {});
       }
       $q.notify({ type: 'positive', message: 'Cliente registrado' });
     }
@@ -305,6 +426,7 @@ function iniciarVentaParaCliente(c) {
 }
 
 onMounted(() => {
+  empresariaStore.cargarEmpresarias();
   cargarClientes();
 });
 </script>

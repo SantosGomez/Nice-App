@@ -167,6 +167,7 @@
 
           <!-- Control de Usuarios y Empresarias -->
           <q-item
+            v-if="authStore.esAdmin"
             clickable
             v-ripple
             to="/usuarios"

@@ -34,6 +34,10 @@ db.version(1).stores({
   sync_queue: '++id, type, action, createdAt, attempts'
 });
 
+db.version(2).stores({
+  clientes: '++IdCliente, EmpresariaId, Nombre, Telefono, localOnly'
+});
+
 /**
  * Helper para registrar una venta offline de forma atómica en Dexie.
  * Actualiza ventas, partidas, pagos, descuenta el stock local y encola para sincronizar.
@@ -49,6 +53,7 @@ db.guardarVentaOffline = async function ({
   items = [],
   pagos = []
 }) {
+  const empId = Number(EmpresariaId);
   return await db.transaction(
     'rw',
     [db.ventas, db.sale_items, db.pagos, db.stock_empresarias, db.inventory_movements, db.sync_queue],
@@ -59,7 +64,7 @@ db.guardarVentaOffline = async function ({
       await db.ventas.put({
         IdVenta,
         Cliente_Id,
-        EmpresariaId,
+        EmpresariaId: empId,
         TipoVenta,
         Estado,
         total: Number(total),
@@ -79,12 +84,12 @@ db.guardarVentaOffline = async function ({
         });
 
         // Descontar de stock_empresarias local
-        const stockRecord = await db.stock_empresarias.get([EmpresariaId, item.ProductoId]);
-        const stockActual = stockRecord ? stockRecord.Stock : 0;
+        const stockRecord = await db.stock_empresarias.get([empId, item.ProductoId]);
+        const stockActual = stockRecord ? Number(stockRecord.Stock) : 0;
         const nuevoStock = Math.max(0, stockActual - Number(item.Cantidad));
 
         await db.stock_empresarias.put({
-          EmpresariaId,
+          EmpresariaId: empId,
           ProductoId: item.ProductoId,
           Stock: nuevoStock,
           updated_at: now
@@ -93,7 +98,7 @@ db.guardarVentaOffline = async function ({
         // Registrar movimiento local
         await db.inventory_movements.add({
           ProductoId: item.ProductoId,
-          EmpresariaId,
+          EmpresariaId: empId,
           tipo: 'SALE_OUT',
           Quantity: Number(item.Cantidad),
           Notas: `Venta POS Offline #${IdVenta.substring(0, 8)}`,
@@ -120,7 +125,7 @@ db.guardarVentaOffline = async function ({
         payload: {
           IdVenta,
           Cliente_Id,
-          EmpresariaId,
+          EmpresariaId: empId,
           TipoVenta,
           Estado,
           total: Number(total),
@@ -138,21 +143,38 @@ db.guardarVentaOffline = async function ({
 };
 
 /**
- * Obtiene los productos combinados con su stock local para la empresaria actual.
+ * Obtiene los productos combinados con su stock local para la empresaria actual sin duplicaciones.
  */
 db.obtenerCatalogoConStock = async function (empresariaId) {
+  const empId = Number(empresariaId || 1);
   const [productos, stockList] = await Promise.all([
     db.productos.toArray(),
-    db.stock_empresarias.where('EmpresariaId').equals(Number(empresariaId)).toArray()
+    db.stock_empresarias.where('EmpresariaId').equals(empId).toArray()
   ]);
 
   const stockMap = new Map();
-  stockList.forEach((s) => stockMap.set(s.ProductoId, s.Stock));
+  stockList.forEach((s) => {
+    if (s && s.ProductoId) {
+      stockMap.set(String(s.ProductoId).trim(), Number(s.Stock) || 0);
+    }
+  });
 
-  return productos.map((prod) => ({
-    ...prod,
-    Stock: stockMap.get(prod.id) || 0
-  }));
+  const uniqueMap = new Map();
+  productos.forEach((prod) => {
+    if (prod) {
+      const prodId = String(prod.id || prod.ProductoId || prod.sku || '').trim();
+      if (prodId && !uniqueMap.has(prodId)) {
+        uniqueMap.set(prodId, {
+          ...prod,
+          id: prodId,
+          ProductoId: prodId,
+          Stock: stockMap.get(prodId) || 0
+        });
+      }
+    }
+  });
+
+  return Array.from(uniqueMap.values());
 };
 
 export default db;

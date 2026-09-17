@@ -10,6 +10,7 @@ export const InventarioModel = {
   async getStockByEmpresaria(empresariaId, { categoria, search } = {}) {
     let sql = `
       SELECT 
+        p.id,
         p.id AS ProductoId,
         p.sku,
         p.CodigoQr,

@@ -68,7 +68,8 @@ export const SyncController = {
             await ClienteModel.create({
               Nombre: c.Nombre,
               Telefono: c.Telefono || null,
-              Nota: c.Nota || null
+              Nota: c.Nota || null,
+              EmpresariaId: c.EmpresariaId ? Number(c.EmpresariaId) : null
             });
             resultados.clientesCreados++;
           } catch (err) {
@@ -97,3 +98,5 @@ export const SyncController = {
     }
   }
 };
+
+export default SyncController;
