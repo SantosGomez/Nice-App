@@ -20,26 +20,49 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE),
   });
 
-  // Guardia de navegación: Protección de rutas con autenticación
+  // Guardia de navegación: Protección de rutas con autenticación y roles
   Router.beforeEach((to, from, next) => {
     let isAuthenticated = false;
+    let usuario = null;
+
     try {
       const authRaw = localStorage.getItem('auth');
       if (authRaw) {
         const auth = JSON.parse(authRaw);
         isAuthenticated = Boolean(auth && auth.token && auth.usuario);
+        usuario = auth?.usuario || null;
       }
     } catch {
       isAuthenticated = false;
+      usuario = null;
     }
 
     if (to.path !== '/login' && !isAuthenticated) {
-      next('/login');
-    } else if (to.path === '/login' && isAuthenticated) {
-      next('/');
-    } else {
-      next();
+      return next('/login');
     }
+
+    if (to.path === '/login' && isAuthenticated) {
+      return next('/');
+    }
+
+    // Validación de roles requeridos (meta.roles)
+    const requiredRoles = to.matched.flatMap((record) => record.meta.roles || []);
+    if (requiredRoles.length > 0) {
+      const userRole = usuario?.Rol || '';
+      const userRoleId = Number(usuario?.RolId);
+
+      const hasPermission =
+        userRoleId === 1 || // SuperAdmin siempre tiene acceso completo
+        requiredRoles.includes(userRole) ||
+        (requiredRoles.includes('Admin') && userRoleId === 2);
+
+      if (!hasPermission) {
+        // Redirige al inicio si no cuenta con el rol necesario
+        return next('/');
+      }
+    }
+
+    next();
   });
 
   return Router;

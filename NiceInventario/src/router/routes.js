@@ -14,7 +14,7 @@ const routes = [
       { path: 'inventario', component: () => import('pages/InventarioPage.vue') },
       { path: 'clientes', component: () => import('pages/ClientesPage.vue') },
       { path: 'ventas', component: () => import('pages/VentasPage.vue') },
-      { path: 'usuarios', component: () => import('pages/UsuariosPage.vue') },
+      { path: 'usuarios', component: () => import('pages/UsuariosPage.vue'), meta: { roles: ['SuperAdmin', 'Admin'] } },
       { path: 'sync', component: () => import('pages/SyncPage.vue') }
     ]
   },
