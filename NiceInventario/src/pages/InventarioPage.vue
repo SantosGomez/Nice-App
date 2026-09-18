@@ -193,7 +193,7 @@
                 </div>
               </div>
 
-              <!-- Botón Rápido de Ajuste de Stock -->
+              <!-- Botones de Acción: Entrada de Stock y Edición -->
               <div class="row q-gutter-xs q-mt-sm">
                 <q-btn
                   outline
@@ -204,7 +204,21 @@
                   icon="add"
                   class="col text-weight-bold"
                   @click="abrirEntradaRapida(prod)"
-                />
+                >
+                  <q-tooltip>Ingresar piezas al stock</q-tooltip>
+                </q-btn>
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  color="primary"
+                  label="Editar"
+                  icon="edit"
+                  class="col text-weight-bold bg-amber-1"
+                  @click="abrirModalEditar(prod)"
+                >
+                  <q-tooltip>Editar datos de la joya</q-tooltip>
+                </q-btn>
               </div>
             </div>
           </q-card-section>
@@ -239,6 +253,18 @@
 
         <template #body-cell-Acciones="props">
           <q-td :props="props" class="text-right">
+            <q-btn
+              round
+              dense
+              flat
+              color="primary"
+              icon="edit"
+              size="sm"
+              class="q-mr-xs"
+              @click="abrirModalEditar(props.row)"
+            >
+              <q-tooltip>Editar Información</q-tooltip>
+            </q-btn>
             <q-btn
               round
               dense
@@ -404,16 +430,19 @@
       </q-card>
     </q-dialog>
 
-    <!-- Modal: Registrar Nueva Joya -->
+    <!-- Modal: Registrar / Editar Joya -->
     <q-dialog v-model="mostrarModalNuevo">
       <q-card style="min-width: 340px; max-width: 550px; border-radius: 16px">
         <q-card-section class="gradient-navy text-white row items-center">
           <div class="row items-center q-gutter-x-xs">
-            <q-icon name="diamond" color="gold" size="22px" />
-            <div class="text-h6 brand-font text-gold">Nueva Joya en Catálogo</div>
+            <q-icon :name="editandoProducto ? 'edit' : 'diamond'" color="gold" size="22px" />
+            <div class="text-h6 brand-font text-gold">
+              {{ editandoProducto ? 'Editar Información de Joya' : 'Nueva Joya en Catálogo' }}
+            </div>
           </div>
           <q-space />
           <q-btn
+            v-if="!editandoProducto"
             flat
             round
             dense
@@ -434,8 +463,10 @@
                 v-model="nuevoProducto.id"
                 dense
                 outlined
+                :disable="editandoProducto"
                 label="ID Único / Código *"
                 placeholder="Ej. NICE-001"
+                :hint="editandoProducto ? 'El ID único no se puede cambiar' : ''"
               />
             </div>
             <div class="col-12 col-sm-6">
@@ -482,7 +513,7 @@
                 placeholder="Ej. Nice 2026"
               />
             </div>
-            <div class="col-12 col-sm-6">
+            <div class="col-12" :class="editandoProducto ? 'col-sm-12' : 'col-sm-6'">
               <q-input
                 v-model.number="nuevoProducto.Precio"
                 type="number"
@@ -492,7 +523,7 @@
                 label="Precio Catálogo *"
               />
             </div>
-            <div class="col-12 col-sm-6">
+            <div v-if="!editandoProducto" class="col-12 col-sm-6">
               <q-input
                 v-model.number="nuevoProducto.StockInicial"
                 type="number"
@@ -515,9 +546,9 @@
           <q-btn
             unelevated
             color="primary"
-            label="Guardar Joya"
+            :label="editandoProducto ? 'Guardar Cambios' : 'Guardar Joya'"
             class="full-width q-mt-md text-weight-bold"
-            @click="guardarNuevoProducto"
+            @click="guardarProducto"
           />
         </q-card-section>
       </q-card>
@@ -559,6 +590,7 @@ const vistaModo = ref('grid')
 const mostrarModalEntrada = ref(false)
 const mostrarModalNuevo = ref(false)
 const mostrarScanner = ref(false)
+const editandoProducto = ref(false)
 
 let html5QrCode = null
 
@@ -687,15 +719,32 @@ function abrirModalEntrada() {
 }
 
 function abrirModalNuevoManual() {
+  editandoProducto.value = false
   nuevoProducto.value = {
     id: '',
     sku: '',
     Nombre: '',
     Categoria: 'Collares',
-    Catalogo: 'Coleccion',
+    Catalogo: 'Coleccion 126',
     Precio: 0,
     StockInicial: 1,
     ImgURL: '',
+  }
+  mostrarModalNuevo.value = true
+}
+
+function abrirModalEditar(prod) {
+  editandoProducto.value = true
+  nuevoProducto.value = {
+    id: String(prod.id || prod.ProductoId || '').trim(),
+    sku: String(prod.sku || '').trim(),
+    CodigoQr: String(prod.CodigoQr || prod.sku || '').trim(),
+    Nombre: prod.Nombre || '',
+    Categoria: prod.Categoria || 'Collares',
+    Catalogo: prod.Catalogo || 'Coleccion 126',
+    Precio: Number(prod.Precio || 0),
+    StockInicial: Number(prod.Stock || 0),
+    ImgURL: prod.ImgURL || '',
   }
   mostrarModalNuevo.value = true
 }
@@ -848,6 +897,7 @@ async function procesarLecturaQR(decodedText) {
       timeout: 3500,
     })
 
+    editandoProducto.value = false
     mostrarModalNuevo.value = true
   }
 }
@@ -931,6 +981,67 @@ async function guardarEntradaStock() {
   }
 }
 
+async function guardarProducto() {
+  if (editandoProducto.value) {
+    await guardarEdicionProducto()
+  } else {
+    await guardarNuevoProducto()
+  }
+}
+
+async function guardarEdicionProducto() {
+  try {
+    const p = nuevoProducto.value
+    if (!p.id || !p.sku || !p.Nombre || p.Precio === undefined || p.Precio === '') {
+      $q.notify({ type: 'warning', message: 'Completa los campos obligatorios (*)' })
+      return
+    }
+
+    const precioNum = Number(p.Precio || 0)
+    const descuento = Number(empresariaStore.descuentoActivo || 25)
+    const precioCosto = precioNum * (1 - descuento / 100)
+
+    const datosActualizar = {
+      sku: String(p.sku).trim(),
+      CodigoQr: String(p.CodigoQr || p.sku).trim(),
+      Nombre: p.Nombre.trim(),
+      Categoria: p.Categoria || 'Collares',
+      Catalogo: p.Catalogo || 'Coleccion 126',
+      Precio: precioNum,
+      PrecioCosto: precioCosto,
+      ImgURL: p.ImgURL ? p.ImgURL.trim() : null,
+    }
+
+    // 1. Actualizar en Dexie
+    await db.productos.update(p.id, datosActualizar)
+
+    // 2. Si hay conexión a internet, enviar actualización a MySQL
+    if (networkStore.isOnline) {
+      try {
+        await api.put(`/productos/${p.id}`, datosActualizar)
+      } catch (apiErr) {
+        console.warn('Sync actualización producto falló:', apiErr.message)
+      }
+    }
+
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: `Joya "${datosActualizar.Nombre}" actualizada exitosamente`,
+    })
+
+    mostrarModalNuevo.value = false
+    editandoProducto.value = false
+    await cargarInventario()
+  } catch (err) {
+    console.error('Error al editar producto:', err)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al editar producto: ' + (err.response?.data?.message || err.message),
+    })
+  }
+}
+
 async function guardarNuevoProducto() {
   try {
     const p = nuevoProducto.value
@@ -1004,6 +1115,7 @@ async function guardarNuevoProducto() {
 
     $q.notify({ type: 'positive', icon: 'diamond', message: 'Joya registrada exitosamente' })
     mostrarModalNuevo.value = false
+    editandoProducto.value = false
     nuevoProducto.value = {
       id: '',
       sku: '',

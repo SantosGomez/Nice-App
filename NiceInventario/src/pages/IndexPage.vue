@@ -176,10 +176,9 @@
                 </span>
               </div>
               <q-btn
-                flat
                 dense
                 size="sm"
-                color="primary"
+                color="secondary"
                 :label="posStore.clienteSeleccionado ? 'Cambiar' : 'Asignar'"
                 @click="mostrarDialogoCliente = true"
               />
