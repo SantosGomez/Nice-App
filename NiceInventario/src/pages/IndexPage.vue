@@ -91,9 +91,12 @@
               <q-card-section class="q-pa-sm col column justify-between">
                 <div>
                   <div class="text-caption text-grey-6 text-weight-medium">
-                    SKU: {{ prod.sku }}
+                    Código: {{ prod.id }}
                   </div>
-                  <div class="text-weight-bold text-subtitle2 text-primary line-clamp-2" style="min-height: 38px;">
+                  <div class="text-caption text-grey-6 text-weight-medium">
+                    Categoría: {{ prod.Categoria }}
+                  </div>
+                  <div class="text-weight-bold text-subtitle2 text-primary line-clamp-2" style="min-height: 38px; margin-top: 5px;">
                     {{ prod.Nombre }}
                   </div>
                 </div>
@@ -196,7 +199,7 @@
                     {{ item.Nombre }}
                   </q-item-label>
                   <q-item-label caption>
-                    SKU: {{ item.sku }} • ${{ formatPrecio(item.Precio) }} c/u
+                    codigo: {{ item.id }} • ${{ formatPrecio(item.Precio) }} c/u
                   </q-item-label>
                 </q-item-section>
 
@@ -205,19 +208,17 @@
                     <q-btn
                       round
                       dense
-                      flat
                       size="sm"
                       icon="remove"
-                      color="grey-8"
+                      color="red"
                       @click="posStore.modificarCantidad(item.id, -1)"
                     />
-                    <span class="text-weight-bold text-subtitle2 q-px-xs">
+                    <span class="text-weight-bold text-subtitle2 text-primary q-px-xs">
                       {{ item.cantidad }}
                     </span>
                     <q-btn
                       round
                       dense
-                      flat
                       size="sm"
                       icon="add"
                       color="primary"
@@ -516,7 +517,7 @@ const productosFiltrados = computed(() => {
     const query = filtroBusqueda.value.toLowerCase();
     return (
       p.Nombre?.toLowerCase().includes(query) ||
-      p.sku?.toLowerCase().includes(query) ||
+      p.id?.toLowerCase().includes(query) ||
       p.CodigoQr?.toLowerCase().includes(query)
     );
   });
@@ -600,18 +601,59 @@ async function abrirEscanerQR() {
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
-        // Encontrar producto por SKU o QR
+        const texto = String(decodedText).trim()
+        let parsedInfo = null
+        let skuExtraido = null
+        let codigoPieza = null
+
+        // 1. Limpiar URL y extraer segmentos
+        const urlLimpia = texto.replace(/^https?:\/\//i, '').split('?')[0].split('#')[0]
+        const partes = urlLimpia.split('/').filter(Boolean)
+
+        if (!texto.startsWith('{')) {
+          const tieneDominio = partes.length > 0 && (partes[0].includes('.') || partes[0].includes(':'))
+          const segmentos = tieneDominio ? partes.slice(1) : partes
+
+          if (segmentos.length >= 2) {
+            skuExtraido = segmentos[0]
+            codigoPieza = segmentos[1] // ID / Código de pieza
+          } else if (segmentos.length === 1) {
+            skuExtraido = segmentos[0]
+          }
+        } else {
+          try {
+            parsedInfo = JSON.parse(texto)
+          } catch {
+            parsedInfo = null
+          }
+        }
+
+        // 2. Extraer el ID / Código de la pieza
+        const piezaDetectada =
+          codigoPieza || parsedInfo?.codigoPieza || parsedInfo?.codigo_pieza || parsedInfo?.id || parsedInfo?.CodigoQr || ''
+        const skuBuscado = skuExtraido || parsedInfo?.sku || texto
+
+        // Priorizar el código de la pieza como el ID a buscar
+        const idBuscado = piezaDetectada || skuBuscado || texto
+
+        // 3. Buscar coincidencia por ID (código de pieza), SKU o CódigoQr
         const encontrado = productos.value.find(
-          (p) => p.sku === decodedText || p.CodigoQr === decodedText || p.id === decodedText
-        );
+          (p) =>
+            String(p.id)?.toLowerCase() === idBuscado.toLowerCase() ||
+            String(p.codigoPieza || p.codigo_pieza)?.toLowerCase() === idBuscado.toLowerCase() ||
+            String(p.sku)?.toLowerCase() === idBuscado.toLowerCase()
+        )
+
         if (encontrado) {
-          agregarAlCarrito(encontrado);
-          cerrarEscaner();
+          agregarAlCarrito(encontrado)
+          cerrarEscaner()
         } else {
           $q.notify({
             type: 'warning',
-            message: `Código escaneado: ${decodedText} (No registrado en catálogo local)`
-          });
+            message: `Pieza ID "${idBuscado}" no registrada en el catálogo local.`,
+            position: 'top',
+            timeout: 3000
+          })
         }
       },
       () => {}

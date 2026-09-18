@@ -109,7 +109,7 @@ export const ProductoController = {
    */
   async createProducto(req, res) {
     try {
-      const { id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto, ImgURL } = req.body;
+      const { id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto, ImgURL, StockInicial, EmpresariaId } = req.body;
 
       // Validaciones básicas de campos obligatorios
       if (!id || !sku || !Nombre || Precio === undefined || !Categoria || !Catalogo) {
@@ -137,7 +137,9 @@ export const ProductoController = {
         Catalogo,
         Precio: Number(Precio),
         PrecioCosto: PrecioCosto !== undefined ? Number(PrecioCosto) : 0.0,
-        ImgURL
+        ImgURL,
+        StockInicial: StockInicial !== undefined ? Number(StockInicial) : 0,
+        EmpresariaId: EmpresariaId ? Number(EmpresariaId) : null
       });
 
       return res.status(201).json({

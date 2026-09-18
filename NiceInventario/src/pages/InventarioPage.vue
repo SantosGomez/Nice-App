@@ -9,7 +9,14 @@
               Catálogo e Inventario
             </div>
             <div class="text-caption text-grey-7">
-              Distribuidora: <span class="text-weight-bold text-primary">{{ empresariaStore.empresariaActiva?.Nombre }}</span> • Descuento: <span class="text-weight-bold text-secondary">{{ empresariaStore.descuentoActivo }}%</span>
+              Distribuidora:
+              <span class="text-weight-bold text-primary">{{
+                empresariaStore.empresariaActiva?.Nombre
+              }}</span>
+              • Descuento:
+              <span class="text-weight-bold text-secondary"
+                >{{ empresariaStore.descuentoActivo }}%</span
+              >
             </div>
           </div>
 
@@ -77,7 +84,7 @@
               outlined
               rounded
               clearable
-              placeholder="Buscar por Nombre, SKU o Código QR..."
+              placeholder="Buscar por Nombre, Código o Código QR..."
               class="bg-grey-1"
             >
               <template #prepend><q-icon name="search" color="primary" /></template>
@@ -106,7 +113,7 @@
               text-color="grey-8"
               :options="[
                 { icon: 'grid_view', value: 'grid' },
-                { icon: 'view_list', value: 'table' }
+                { icon: 'view_list', value: 'table' },
               ]"
             />
           </div>
@@ -137,7 +144,7 @@
         class="col-12 col-sm-6 col-md-4 col-lg-3"
       >
         <q-card flat class="rounded-borders shadow-1 bg-white column full-height">
-          <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 140px;">
+          <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 140px">
             <q-img
               v-if="prod.ImgURL"
               :src="prod.ImgURL"
@@ -160,7 +167,9 @@
 
           <q-card-section class="q-pa-sm col column justify-between">
             <div>
-              <div class="text-caption text-grey-6">SKU: {{ prod.sku }} • {{ prod.Categoria }}</div>
+              <div class="text-caption text-grey-6">
+                Código: {{ prod.id }} / Categoría: {{ prod.Categoria }}
+              </div>
               <div class="text-weight-bold text-subtitle2 text-primary line-clamp-2">
                 {{ prod.Nombre }}
               </div>
@@ -175,7 +184,9 @@
                   </div>
                 </div>
                 <div class="text-right">
-                  <div class="text-caption text-grey-6">Costo ({{ empresariaStore.descuentoActivo }}%):</div>
+                  <div class="text-caption text-grey-6">
+                    Costo ({{ empresariaStore.descuentoActivo }}%):
+                  </div>
                   <div class="text-caption text-weight-bold text-secondary">
                     ${{ formatPrecio(prod.Precio * (1 - empresariaStore.descuentoActivo / 100)) }}
                   </div>
@@ -202,7 +213,11 @@
     </div>
 
     <!-- Vista Tabla -->
-    <q-card v-else-if="vistaModo === 'table' && productosFiltrados.length > 0" flat class="rounded-borders shadow-1 bg-white">
+    <q-card
+      v-else-if="vistaModo === 'table' && productosFiltrados.length > 0"
+      flat
+      class="rounded-borders shadow-1 bg-white"
+    >
       <q-table
         :rows="productosFiltrados"
         :columns="columnasTabla"
@@ -249,7 +264,7 @@
 
     <!-- Diálogo: Escáner QR con Cámara -->
     <q-dialog v-model="mostrarScanner" persistent @hide="cerrarEscaner">
-      <q-card style="width: 100%; max-width: 440px; border-radius: 20px;" class="overflow-hidden">
+      <q-card style="width: 100%; max-width: 440px; border-radius: 20px" class="overflow-hidden">
         <q-card-section class="gradient-navy text-white row items-center q-py-sm">
           <div class="row items-center q-gutter-x-xs">
             <q-icon name="qr_code_scanner" size="24px" color="gold" />
@@ -263,7 +278,8 @@
 
         <q-card-section class="q-pa-md text-center bg-grey-1">
           <div class="text-caption text-grey-7 q-mb-sm">
-            Apunta la cámara a la etiqueta de la joya. El sistema autocompletará el formulario correspondiente:
+            Apunta la cámara a la etiqueta de la joya. El sistema autocompletará el formulario
+            correspondiente:
           </div>
 
           <!-- Contenedor del visor de cámara -->
@@ -287,7 +303,7 @@
 
     <!-- Modal: Registrar Entrada de Inventario (QR / Manual) -->
     <q-dialog v-model="mostrarModalEntrada">
-      <q-card style="min-width: 340px; max-width: 500px; border-radius: 16px;">
+      <q-card style="min-width: 340px; max-width: 500px; border-radius: 16px">
         <q-card-section class="gradient-navy text-white row items-center">
           <div class="row items-center q-gutter-x-xs">
             <q-icon name="inventory" color="gold" size="22px" />
@@ -327,7 +343,9 @@
                 <q-item v-bind="scope.itemProps">
                   <q-item-section>
                     <q-item-label>{{ scope.opt.Nombre }}</q-item-label>
-                    <q-item-label caption>SKU: {{ scope.opt.sku }} • Stock actual: {{ scope.opt.Stock }}</q-item-label>
+                    <q-item-label caption
+                      >SKU: {{ scope.opt.sku }} • Stock actual: {{ scope.opt.Stock }}</q-item-label
+                    >
                   </q-item-section>
                 </q-item>
               </template>
@@ -353,7 +371,7 @@
                 :options="[
                   { label: 'Escaneo QR', value: 'IN_QR' },
                   { label: 'Ingreso Manual', value: 'MANUAL_IN' },
-                  { label: 'Ajuste Físico', value: 'ADJUSTMENT' }
+                  { label: 'Ajuste Físico', value: 'ADJUSTMENT' },
                 ]"
                 emit-value
                 map-options
@@ -388,7 +406,7 @@
 
     <!-- Modal: Registrar Nueva Joya -->
     <q-dialog v-model="mostrarModalNuevo">
-      <q-card style="min-width: 340px; max-width: 550px; border-radius: 16px;">
+      <q-card style="min-width: 340px; max-width: 550px; border-radius: 16px">
         <q-card-section class="gradient-navy text-white row items-center">
           <div class="row items-center q-gutter-x-xs">
             <q-icon name="diamond" color="gold" size="22px" />
@@ -412,34 +430,85 @@
         <q-card-section class="q-pa-md">
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-sm-6">
-              <q-input v-model="nuevoProducto.id" dense outlined label="ID Único / Código *" placeholder="Ej. NICE-001" />
+              <q-input
+                v-model="nuevoProducto.id"
+                dense
+                outlined
+                label="ID Único / Código *"
+                placeholder="Ej. NICE-001"
+              />
             </div>
             <div class="col-12 col-sm-6">
-              <q-input v-model="nuevoProducto.sku" dense outlined label="SKU de Joya *" placeholder="Ej. 123456" />
+              <q-input
+                v-model="nuevoProducto.sku"
+                dense
+                outlined
+                label="SKU de Joya *"
+                placeholder="Ej. 123456"
+              />
             </div>
             <div class="col-12">
-              <q-input v-model="nuevoProducto.Nombre" dense outlined label="Nombre de la Joya *" placeholder="Ej. Aretes Baño de Oro 18K Cristal" />
+              <q-input
+                v-model="nuevoProducto.Nombre"
+                dense
+                outlined
+                label="Nombre de la Joya *"
+                placeholder="Ej. Aretes Baño de Oro 18K Cristal"
+              />
             </div>
             <div class="col-12 col-sm-6">
               <q-select
                 v-model="nuevoProducto.Categoria"
-                :options="['Collares', 'Aretes', 'Pulseras', 'Anillos', 'Dijes', 'Relojes', 'Accesorios']"
+                :options="[
+                  'Collares',
+                  'Aretes',
+                  'Pulseras',
+                  'Anillos',
+                  'Dijes',
+                  'Relojes',
+                  'Accesorios',
+                ]"
                 dense
                 outlined
                 label="Categoría *"
               />
             </div>
             <div class="col-12 col-sm-6">
-              <q-input v-model="nuevoProducto.Catalogo" dense outlined label="Catálogo / Colección *" placeholder="Ej. Nice 2026" />
+              <q-input
+                v-model="nuevoProducto.Catalogo"
+                dense
+                outlined
+                label="Catálogo / Colección *"
+                placeholder="Ej. Nice 2026"
+              />
             </div>
             <div class="col-12 col-sm-6">
-              <q-input v-model.number="nuevoProducto.Precio" type="number" dense outlined prefix="$" label="Precio Catálogo *" />
+              <q-input
+                v-model.number="nuevoProducto.Precio"
+                type="number"
+                dense
+                outlined
+                prefix="$"
+                label="Precio Catálogo *"
+              />
             </div>
             <div class="col-12 col-sm-6">
-              <q-input v-model.number="nuevoProducto.StockInicial" type="number" dense outlined label="Stock Inicial" />
+              <q-input
+                v-model.number="nuevoProducto.StockInicial"
+                type="number"
+                dense
+                outlined
+                label="Stock Inicial"
+              />
             </div>
             <div class="col-12">
-              <q-input v-model="nuevoProducto.ImgURL" dense outlined label="URL de Imagen (Opcional)" placeholder="https://..." />
+              <q-input
+                v-model="nuevoProducto.ImgURL"
+                dense
+                outlined
+                label="URL de Imagen (Opcional)"
+                placeholder="https://..."
+              />
             </div>
           </div>
 
@@ -457,39 +526,48 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { useQuasar } from 'quasar';
-import { Html5Qrcode } from 'html5-qrcode';
-import db from '../db/index.js';
-import api from '../services/api.js';
-import { useEmpresariaStore } from '../stores/empresariaStore.js';
-import { useAuthStore } from '../stores/authStore.js';
-import { useNetworkStore } from '../stores/networkStore.js';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
+import { Html5Qrcode } from 'html5-qrcode'
+import db from '../db/index.js'
+import api from '../services/api.js'
+import { useEmpresariaStore } from '../stores/empresariaStore.js'
+import { useAuthStore } from '../stores/authStore.js'
+import { useNetworkStore } from '../stores/networkStore.js'
 
-const $q = useQuasar();
-const empresariaStore = useEmpresariaStore();
-const authStore = useAuthStore();
-const networkStore = useNetworkStore();
+const $q = useQuasar()
+const empresariaStore = useEmpresariaStore()
+const authStore = useAuthStore()
+const networkStore = useNetworkStore()
 
-const productos = ref([]);
-const filtroBusqueda = ref('');
-const categoriaSeleccionada = ref('Todos');
-const categorias = ref(['Todos', 'Collares', 'Aretes', 'Pulseras', 'Anillos', 'Dijes', 'Relojes', 'Accesorios']);
-const vistaModo = ref('grid');
+const productos = ref([])
+const filtroBusqueda = ref('')
+const categoriaSeleccionada = ref('Todos')
+const categorias = ref([
+  'Todos',
+  'Collares',
+  'Aretes',
+  'Pulseras',
+  'Anillos',
+  'Dijes',
+  'Relojes',
+  'Accesorios',
+])
+const vistaModo = ref('grid')
 
 // Modales
-const mostrarModalEntrada = ref(false);
-const mostrarModalNuevo = ref(false);
-const mostrarScanner = ref(false);
+const mostrarModalEntrada = ref(false)
+const mostrarModalNuevo = ref(false)
+const mostrarScanner = ref(false)
 
-let html5QrCode = null;
+let html5QrCode = null
 
 const entradaData = ref({
   producto: null,
   cantidad: 1,
   tipo: 'IN_QR',
-  notas: ''
-});
+  notas: '',
+})
 
 const nuevoProducto = ref({
   id: '',
@@ -499,27 +577,34 @@ const nuevoProducto = ref({
   Catalogo: 'Nice 2026',
   Precio: 0,
   StockInicial: 1,
-  ImgURL: ''
-});
+  ImgURL: '',
+})
 
 const columnasTabla = [
   { name: 'sku', label: 'SKU', field: 'sku', align: 'left', sortable: true },
   { name: 'Nombre', label: 'Nombre', field: 'Nombre', align: 'left', sortable: true },
   { name: 'Categoria', label: 'Categoría', field: 'Categoria', align: 'left' },
   { name: 'Catalogo', label: 'Catálogo', field: 'Catalogo', align: 'left' },
-  { name: 'Precio', label: 'Precio', field: (row) => `$${Number(row.Precio).toFixed(2)}`, align: 'right', sortable: true },
+  {
+    name: 'Precio',
+    label: 'Precio',
+    field: (row) => `$${Number(row.Precio).toFixed(2)}`,
+    align: 'right',
+    sortable: true,
+  },
   { name: 'Stock', label: 'Stock', field: 'Stock', align: 'center', sortable: true },
-  { name: 'Acciones', label: 'Acciones', align: 'right' }
-];
+  { name: 'Acciones', label: 'Acciones', align: 'right' },
+]
 
 async function cargarInventario() {
   try {
-    const empId = empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2;
+    const empId =
+      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2
     if (networkStore.isOnline) {
       try {
-        const resp = await api.get(`/inventario/stock/${empId}`);
+        const resp = await api.get(`/inventario/stock/${empId}`)
         if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
-          const rawData = resp.data.data;
+          const rawData = resp.data.data
           const prods = rawData.map((p) => ({
             id: String(p.id || p.ProductoId).trim(),
             sku: p.sku,
@@ -530,30 +615,30 @@ async function cargarInventario() {
             Precio: Number(p.Precio),
             PrecioCosto: Number(p.PrecioCosto || 0),
             ImgURL: p.ImgURL,
-            Stock: Number(p.Stock || 0)
-          }));
+            Stock: Number(p.Stock || 0),
+          }))
 
-          productos.value = prods;
+          productos.value = prods
 
           // Actualizar caché de Dexie en segundo plano
-          await db.productos.bulkPut(prods);
+          await db.productos.bulkPut(prods)
           const stockItems = prods.map((p) => ({
             EmpresariaId: Number(empId),
             ProductoId: p.id,
             Stock: Number(p.Stock),
-            updated_at: new Date().toISOString()
-          }));
-          await db.stock_empresarias.bulkPut(stockItems);
-          return;
+            updated_at: new Date().toISOString(),
+          }))
+          await db.stock_empresarias.bulkPut(stockItems)
+          return
         }
       } catch (apiErr) {
-        console.warn('No se pudo obtener inventario online, cargando local:', apiErr.message);
+        console.warn('No se pudo obtener inventario online, cargando local:', apiErr.message)
       }
     }
 
-    productos.value = await db.obtenerCatalogoConStock(empId);
+    productos.value = await db.obtenerCatalogoConStock(empId)
   } catch (err) {
-    console.error('Error cargando inventario:', err);
+    console.error('Error cargando inventario:', err)
   }
 }
 
@@ -561,34 +646,34 @@ watch(
   () => empresariaStore.empresariaActiva?.IdEmpresaria,
   (newId) => {
     if (newId) {
-      cargarInventario();
+      cargarInventario()
     }
-  }
-);
+  },
+)
 
 const productosFiltrados = computed(() => {
   return productos.value.filter((p) => {
     const matchCat =
       categoriaSeleccionada.value === 'Todos' ||
-      p.Categoria?.toLowerCase() === categoriaSeleccionada.value.toLowerCase();
-    if (!matchCat) return false;
+      p.Categoria?.toLowerCase() === categoriaSeleccionada.value.toLowerCase()
+    if (!matchCat) return false
 
-    if (!filtroBusqueda.value) return true;
-    const q = filtroBusqueda.value.toLowerCase();
+    if (!filtroBusqueda.value) return true
+    const q = filtroBusqueda.value.toLowerCase()
     return (
       p.Nombre?.toLowerCase().includes(q) ||
-      p.sku?.toLowerCase().includes(q) ||
+      p.id?.toLowerCase().includes(q) ||
       p.CodigoQr?.toLowerCase().includes(q)
-    );
-  });
-});
+    )
+  })
+})
 
 const totalPiezasStock = computed(() => {
-  return productos.value.reduce((acc, p) => acc + (Number(p.Stock) || 0), 0);
-});
+  return productos.value.reduce((acc, p) => acc + (Number(p.Stock) || 0), 0)
+})
 
 function formatPrecio(val) {
-  return Number(val || 0).toFixed(2);
+  return Number(val || 0).toFixed(2)
 }
 
 function abrirModalEntrada() {
@@ -596,9 +681,9 @@ function abrirModalEntrada() {
     producto: productos.value[0] || null,
     cantidad: 1,
     tipo: 'MANUAL_IN',
-    notas: ''
-  };
-  mostrarModalEntrada.value = true;
+    notas: '',
+  }
+  mostrarModalEntrada.value = true
 }
 
 function abrirModalNuevoManual() {
@@ -607,12 +692,12 @@ function abrirModalNuevoManual() {
     sku: '',
     Nombre: '',
     Categoria: 'Collares',
-    Catalogo: 'Nice 2026',
+    Catalogo: 'Coleccion',
     Precio: 0,
     StockInicial: 1,
-    ImgURL: ''
-  };
-  mostrarModalNuevo.value = true;
+    ImgURL: '',
+  }
+  mostrarModalNuevo.value = true
 }
 
 function abrirEntradaRapida(prod) {
@@ -620,47 +705,47 @@ function abrirEntradaRapida(prod) {
     producto: prod,
     cantidad: 1,
     tipo: 'MANUAL_IN',
-    notas: 'Entrada rápida desde catálogo'
-  };
-  mostrarModalEntrada.value = true;
+    notas: 'Entrada rápida desde catálogo',
+  }
+  mostrarModalEntrada.value = true
 }
 
 function abrirEscanerDesdeEntrada() {
-  mostrarModalEntrada.value = false;
-  abrirEscanerQR();
+  mostrarModalEntrada.value = false
+  abrirEscanerQR()
 }
 
 function abrirEscanerDesdeNuevo() {
-  mostrarModalNuevo.value = false;
-  abrirEscanerQR();
+  mostrarModalNuevo.value = false
+  abrirEscanerQR()
 }
 
 /**
  * Inicia el escáner de cámara para leer códigos QR de joyas Nice.
  */
 async function abrirEscanerQR() {
-  mostrarScanner.value = true;
-  await nextTick();
+  mostrarScanner.value = true
+  await nextTick()
 
   try {
-    html5QrCode = new Html5Qrcode('reader-inventario');
+    html5QrCode = new Html5Qrcode('reader-inventario')
     await html5QrCode.start(
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 240, height: 240 } },
       (decodedText) => {
-        procesarLecturaQR(decodedText);
+        procesarLecturaQR(decodedText)
       },
       () => {
         // Errores menores por cuadro vacío ignorados
-      }
-    );
+      },
+    )
   } catch (err) {
-    console.error('Error al iniciar cámara QR:', err);
+    console.error('Error al iniciar cámara QR:', err)
     $q.notify({
       type: 'negative',
-      message: 'No se pudo acceder a la cámara: ' + (err.message || err)
-    });
-    mostrarScanner.value = false;
+      message: 'No se pudo acceder a la cámara: ' + (err.message || err),
+    })
+    mostrarScanner.value = false
   }
 }
 
@@ -671,27 +756,52 @@ async function abrirEscanerQR() {
  * - Si es nueva -> abre modal de Nueva Joya con los campos prellenados.
  */
 async function procesarLecturaQR(decodedText) {
-  await cerrarEscaner();
+  await cerrarEscaner()
 
-  const texto = String(decodedText).trim();
-  let parsedInfo = null;
+  const texto = String(decodedText).trim()
+  let parsedInfo = null
+  let skuExtraido = null
+  let codigoPieza = null
 
-  // 1. Intentar parsear como JSON si el QR contiene un payload estructurado
-  try {
-    parsedInfo = JSON.parse(texto);
-  } catch {
-    parsedInfo = null;
+  // 1. Limpiar URL de protocolo (http/https), parámetros (?query) y hashtags (#)
+  const urlLimpia = texto.replace(/^https?:\/\//i, '').split('?')[0].split('#')[0]
+  const partes = urlLimpia.split('/').filter(Boolean)
+
+  if (!texto.startsWith('{')) {
+    // Detectar si el primer segmento es el dominio (ej: nnb.mx)
+    const tieneDominio = partes.length > 0 && (partes[0].includes('.') || partes[0].includes(':'))
+    const segmentos = tieneDominio ? partes.slice(1) : partes
+
+    if (segmentos.length >= 2) {
+      // Caso: nnb.mx/19046882/925222 -> SKU: 19046882 | Pieza: 925222
+      skuExtraido = segmentos[0]
+      codigoPieza = segmentos[1]
+    } else if (segmentos.length === 1) {
+      // Caso: nnb.mx/19046882 -> SKU: 19046882 | Pieza: null
+      skuExtraido = segmentos[0]
+    }
+  } else {
+    // Intentar parsear como JSON si viene un payload estructurado
+    try {
+      parsedInfo = JSON.parse(texto)
+    } catch {
+      parsedInfo = null
+    }
   }
 
-  const skuBuscado = (parsedInfo && (parsedInfo.sku || parsedInfo.id || parsedInfo.CodigoQr)) || texto;
+  // Definir SKU y Código de Pieza finales
+  const skuBuscado =
+    skuExtraido || (parsedInfo && (parsedInfo.sku || parsedInfo.id || parsedInfo.CodigoQr)) || texto
+  const piezaDetectada =
+    codigoPieza || parsedInfo?.codigoPieza || parsedInfo?.codigo_pieza || parsedInfo?.CodigoQr || ''
 
   // 2. Buscar si ya existe en el catálogo local
   const encontrado = productos.value.find(
     (p) =>
       p.sku?.toLowerCase() === skuBuscado.toLowerCase() ||
       p.CodigoQr?.toLowerCase() === skuBuscado.toLowerCase() ||
-      p.id?.toLowerCase() === skuBuscado.toLowerCase()
-  );
+      p.id?.toLowerCase() === skuBuscado.toLowerCase(),
+  )
 
   if (encontrado) {
     // CASO A: Joya existente -> Preparar formulario de Entrada de Stock
@@ -699,40 +809,46 @@ async function procesarLecturaQR(decodedText) {
       producto: encontrado,
       cantidad: 1,
       tipo: 'IN_QR',
-      notas: `Entrada escaneada por QR (${skuBuscado})`
-    };
+      codigoPieza: piezaDetectada,
+      codigo_pieza: piezaDetectada,
+      CodigoQr: piezaDetectada,
+      notas: `Entrada escaneada por QR (SKU: ${skuBuscado}${piezaDetectada ? `, Pieza: ${piezaDetectada}` : ''})`,
+    }
 
     $q.notify({
       type: 'positive',
       icon: 'qr_code_2',
-      message: `Joya identificada: "${encontrado.Nombre}". Ajusta la cantidad y confirma la entrada.`,
+      message: `Joya identificada: "${encontrado.Nombre}"${piezaDetectada ? ` [Pieza: ${piezaDetectada}]` : ''}`,
       position: 'top',
-      timeout: 3000
-    });
+      timeout: 3000,
+    })
 
-    mostrarModalEntrada.value = true;
+    mostrarModalEntrada.value = true
   } else {
     // CASO B: Joya Nueva -> Preparar formulario para agregar nueva pieza
     nuevoProducto.value = {
-      id: parsedInfo?.id || skuBuscado,
+      id: piezaDetectada,
       sku: parsedInfo?.sku || skuBuscado,
+      codigoPieza: piezaDetectada,
+      codigo_pieza: piezaDetectada,
+      CodigoQr: piezaDetectada,
       Nombre: parsedInfo?.Nombre || parsedInfo?.nombre || '',
       Categoria: parsedInfo?.Categoria || parsedInfo?.categoria || 'Collares',
-      Catalogo: parsedInfo?.Catalogo || parsedInfo?.catalogo || 'Nice 2026',
+      Catalogo: parsedInfo?.Catalogo || parsedInfo?.catalogo || 'Coleccion 126',
       Precio: Number(parsedInfo?.Precio || parsedInfo?.precio || 0),
       StockInicial: Number(parsedInfo?.StockInicial || parsedInfo?.cantidad || 1),
-      ImgURL: parsedInfo?.ImgURL || parsedInfo?.imgUrl || ''
-    };
+      ImgURL: parsedInfo?.ImgURL || parsedInfo?.imgUrl || '',
+    }
 
     $q.notify({
       type: 'info',
       icon: 'auto_awesome',
-      message: `Código detectado: "${skuBuscado}". Formulario listo para registrar la nueva joya.`,
+      message: `Código detectado: SKU ${skuBuscado}${piezaDetectada ? ` | Pieza ${piezaDetectada}` : ''}. Formulario listo.`,
       position: 'top',
-      timeout: 3500
-    });
+      timeout: 3500,
+    })
 
-    mostrarModalNuevo.value = true;
+    mostrarModalNuevo.value = true
   }
 }
 
@@ -740,123 +856,178 @@ async function cerrarEscaner() {
   if (html5QrCode) {
     try {
       if (html5QrCode.isScanning) {
-        await html5QrCode.stop();
+        await html5QrCode.stop()
       }
-      await html5QrCode.clear();
+      await html5QrCode.clear()
     } catch (e) {
-      console.warn('Deteniendo scanner:', e);
+      console.warn('Deteniendo scanner:', e)
     }
-    html5QrCode = null;
+    html5QrCode = null
   }
-  mostrarScanner.value = false;
+  mostrarScanner.value = false
 }
 
 async function guardarEntradaStock() {
   try {
-    const { producto, cantidad, tipo, notas } = entradaData.value;
-    const empId = empresariaStore.empresariaActiva?.IdEmpresaria || 1;
+    const { producto, cantidad, tipo, notas } = entradaData.value
+    if (!producto || !producto.id) {
+      $q.notify({ type: 'warning', message: 'Selecciona una joya válida' })
+      return
+    }
 
-    // Actualizar en Dexie
-    const stockRecord = await db.stock_empresarias.get([empId, producto.id]);
-    const stockActual = stockRecord ? stockRecord.Stock : 0;
-    const nuevoStock = stockActual + Number(cantidad);
+    const empId = Number(
+      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2
+    )
+    const cantNum = Number(cantidad || 1)
+
+    // 1. Actualizar en Dexie
+    const stockRecord = await db.stock_empresarias.get([empId, producto.id])
+    const stockActual = stockRecord ? Number(stockRecord.Stock || 0) : 0
+    const nuevoStock = stockActual + cantNum
 
     await db.stock_empresarias.put({
       EmpresariaId: empId,
       ProductoId: producto.id,
       Stock: nuevoStock,
-      updated_at: new Date().toISOString()
-    });
+      updated_at: new Date().toISOString(),
+    })
 
     await db.inventory_movements.add({
       ProductoId: producto.id,
       EmpresariaId: empId,
-      tipo,
-      Quantity: Number(cantidad),
+      tipo: tipo || 'IN_QR',
+      Quantity: cantNum,
       Notas: notas || 'Entrada registrada en tablet',
-      created_at: new Date().toISOString()
-    });
+      created_at: new Date().toISOString(),
+    })
 
-    // Si hay conexión, enviar al backend
+    // 2. Si hay conexión, enviar al backend y esperar a que MySQL confirme
     if (networkStore.isOnline) {
-      api.post('/inventario/movimiento', {
-        ProductoId: producto.id,
-        EmpresariaId: empId,
-        tipo,
-        Quantity: Number(cantidad),
-        Notas: notas
-      }).catch((e) => console.warn('[Inventario] Sincronización backend en cola:', e.message));
+      try {
+        await api.post('/inventario/movimiento', {
+          ProductoId: producto.id,
+          EmpresariaId: empId,
+          tipo: tipo || 'IN_QR',
+          Quantity: cantNum,
+          Notas: notas,
+        })
+      } catch (apiErr) {
+        console.warn('[Inventario] Error sincronizando movimiento con backend:', apiErr.message)
+      }
     }
 
     $q.notify({
       type: 'positive',
       icon: 'done_all',
-      message: `+${cantidad} piezas agregadas a ${producto.Nombre}`,
-      position: 'top'
-    });
+      message: `+${cantNum} piezas agregadas a ${producto.Nombre}`,
+      position: 'top',
+    })
 
-    mostrarModalEntrada.value = false;
-    await cargarInventario();
+    mostrarModalEntrada.value = false
+    await cargarInventario()
   } catch (err) {
-    $q.notify({ type: 'negative', message: 'Error al registrar entrada: ' + err.message });
+    console.error('Error al registrar entrada:', err)
+    $q.notify({ type: 'negative', message: 'Error al registrar entrada: ' + (err.response?.data?.message || err.message) })
   }
 }
 
 async function guardarNuevoProducto() {
   try {
-    const p = nuevoProducto.value;
-    if (!p.id || !p.sku || !p.Nombre || !p.Precio) {
-      $q.notify({ type: 'warning', message: 'Completa los campos obligatorios (*)' });
-      return;
+    const p = nuevoProducto.value
+    if (!p.id || !p.sku || !p.Nombre || p.Precio === undefined || p.Precio === '') {
+      $q.notify({ type: 'warning', message: 'Completa los campos obligatorios (*)' })
+      return
     }
 
-    const empId = empresariaStore.empresariaActiva?.IdEmpresaria || 1;
+    const empId = Number(
+      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2
+    )
+    const stockInicialNum = Number(p.StockInicial || 0)
+    const precioNum = Number(p.Precio || 0)
+    const descuento = Number(empresariaStore.descuentoActivo || 25)
+
     const prodObj = {
-      id: p.id.trim(),
-      sku: p.sku.trim(),
-      CodigoQr: p.sku.trim(),
+      id: String(p.id).trim(),
+      sku: String(p.sku).trim(),
+      CodigoQr: String(p.CodigoQr || p.codigoPieza || p.sku).trim(),
       Nombre: p.Nombre.trim(),
-      Categoria: p.Categoria,
-      Catalogo: p.Catalogo,
-      Precio: Number(p.Precio),
-      PrecioCosto: Number(p.Precio) * (1 - (empresariaStore.descuentoActivo / 100)),
-      ImgURL: p.ImgURL ? p.ImgURL.trim() : null
-    };
+      Categoria: p.Categoria || 'Collares',
+      Catalogo: p.Catalogo || 'Coleccion 126',
+      Precio: precioNum,
+      PrecioCosto: precioNum * (1 - descuento / 100),
+      ImgURL: p.ImgURL ? p.ImgURL.trim() : null,
+      StockInicial: stockInicialNum,
+      EmpresariaId: empId,
+    }
 
     // 1. Guardar producto en Dexie
-    await db.productos.put(prodObj);
+    await db.productos.put({
+      id: prodObj.id,
+      sku: prodObj.sku,
+      CodigoQr: prodObj.CodigoQr,
+      Nombre: prodObj.Nombre,
+      Categoria: prodObj.Categoria,
+      Catalogo: prodObj.Catalogo,
+      Precio: prodObj.Precio,
+      PrecioCosto: prodObj.PrecioCosto,
+      ImgURL: prodObj.ImgURL,
+      Stock: stockInicialNum,
+    })
 
-    // 2. Si se asignó stock inicial, guardarlo
-    if (Number(p.StockInicial) > 0) {
+    // 2. Si se asignó stock inicial, guardarlo en Dexie
+    if (stockInicialNum > 0) {
       await db.stock_empresarias.put({
         EmpresariaId: empId,
         ProductoId: prodObj.id,
-        Stock: Number(p.StockInicial),
-        updated_at: new Date().toISOString()
-      });
+        Stock: stockInicialNum,
+        updated_at: new Date().toISOString(),
+      })
+
+      await db.inventory_movements.add({
+        ProductoId: prodObj.id,
+        EmpresariaId: empId,
+        tipo: 'IN_QR',
+        Quantity: stockInicialNum,
+        Notas: 'Inventario inicial al registrar joya',
+        created_at: new Date().toISOString(),
+      })
     }
 
-    // 3. Si hay red, enviar al backend
+    // 3. Si hay red, enviar al backend y esperar confirmación en MySQL
     if (networkStore.isOnline) {
-      api.post('/productos', prodObj).catch((e) => console.warn('Sync producto nuevo falló:', e.message));
+      try {
+        await api.post('/productos', prodObj)
+      } catch (apiErr) {
+        console.warn('Sync producto nuevo falló:', apiErr.message)
+      }
     }
 
-    $q.notify({ type: 'positive', icon: 'diamond', message: 'Joya registrada exitosamente' });
-    mostrarModalNuevo.value = false;
-    nuevoProducto.value = { id: '', sku: '', Nombre: '', Categoria: 'Collares', Catalogo: 'Nice 2026', Precio: 0, StockInicial: 1, ImgURL: '' };
-    await cargarInventario();
+    $q.notify({ type: 'positive', icon: 'diamond', message: 'Joya registrada exitosamente' })
+    mostrarModalNuevo.value = false
+    nuevoProducto.value = {
+      id: '',
+      sku: '',
+      Nombre: '',
+      Categoria: 'Collares',
+      Catalogo: 'Nice 2026',
+      Precio: 0,
+      StockInicial: 1,
+      ImgURL: '',
+    }
+    await cargarInventario()
   } catch (err) {
-    $q.notify({ type: 'negative', message: 'Error al guardar producto: ' + err.message });
+    console.error('Error al guardar producto:', err)
+    $q.notify({ type: 'negative', message: 'Error al guardar producto: ' + (err.response?.data?.message || err.message) })
   }
 }
 
 onMounted(() => {
-  cargarInventario();
-});
+  cargarInventario()
+})
 
 onBeforeUnmount(() => {
-  cerrarEscaner();
-});
+  cerrarEscaner()
+})
 </script>
 
 <style scoped>

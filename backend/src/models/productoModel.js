@@ -138,26 +138,54 @@ export const ProductoModel = {
   },
 
   /**
-   * Inserta un nuevo producto.
+   * Inserta un nuevo producto y opcionalmente su stock inicial.
    */
-  async create({ id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto = 0.0, ImgURL = null }) {
-    const sql = `
-      INSERT INTO productos (id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto, ImgURL)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    const [result] = await pool.query(sql, [
-      id,
-      sku,
-      CodigoQr || null,
-      Nombre,
-      Categoria,
-      Catalogo,
-      Precio,
-      PrecioCosto,
-      ImgURL
-    ]);
+  async create({ id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto = 0.0, ImgURL = null, StockInicial = 0, EmpresariaId = null }) {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
 
-    return { id, sku, Nombre };
+      const sql = `
+        INSERT INTO productos (id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto, ImgURL)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      await connection.query(sql, [
+        id,
+        sku,
+        CodigoQr || null,
+        Nombre,
+        Categoria,
+        Catalogo,
+        Precio,
+        PrecioCosto,
+        ImgURL
+      ]);
+
+      const stockNum = Number(StockInicial || 0);
+      if (stockNum > 0 && EmpresariaId) {
+        const empId = Number(EmpresariaId);
+        const sqlStock = `
+          INSERT INTO stock_empresarias (EmpresariaId, ProductoId, Stock)
+          VALUES (?, ?, ?)
+          ON DUPLICATE KEY UPDATE Stock = Stock + ?
+        `;
+        await connection.query(sqlStock, [empId, id, stockNum, stockNum]);
+
+        const sqlMov = `
+          INSERT INTO inventory_movements (ProductoId, EmpresariaId, tipo, Quantity, Notas)
+          VALUES (?, ?, 'IN_QR', ?, 'Inventario inicial al registrar joya')
+        `;
+        await connection.query(sqlMov, [id, empId, stockNum]);
+      }
+
+      await connection.commit();
+      return { id, sku, Nombre, Stock: stockNum };
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
   },
 
   /**
