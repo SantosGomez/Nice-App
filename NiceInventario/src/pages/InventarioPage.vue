@@ -613,7 +613,7 @@ const nuevoProducto = ref({
 })
 
 const columnasTabla = [
-  { name: 'sku', label: 'SKU', field: 'sku', align: 'left', sortable: true },
+  { name: 'id', label: 'Código', field: 'id', align: 'left', sortable: true },
   { name: 'Nombre', label: 'Nombre', field: 'Nombre', align: 'left', sortable: true },
   { name: 'Categoria', label: 'Categoría', field: 'Categoria', align: 'left' },
   { name: 'Catalogo', label: 'Catálogo', field: 'Catalogo', align: 'left' },
