@@ -327,6 +327,40 @@
       </q-card>
     </q-dialog>
 
+    <!-- Diálogo para Tomar Foto de Producto con Cámara en Vivo -->
+    <q-dialog v-model="mostrarModalCamara" persistent @hide="detenerCamaraFoto">
+      <q-card style="width: 100%; max-width: 450px; border-radius: 16px">
+        <q-card-section class="bg-primary text-white row items-center q-py-sm">
+          <div class="text-subtitle1 text-weight-bold">Tomar Foto del Producto</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pa-md text-center bg-black">
+          <video
+            ref="videoFotoRef"
+            autoplay
+            playsinline
+            style="width: 100%; height: 260px; object-fit: cover; border-radius: 8px"
+          ></video>
+          <canvas ref="canvasFotoRef" style="display: none"></canvas>
+        </q-card-section>
+
+        <q-card-actions align="center" class="q-pa-md bg-grey-2">
+          <q-btn
+            unelevated
+            rounded
+            color="primary"
+            icon="photo_camera"
+            label="Capturar Foto"
+            class="text-weight-bold q-px-md"
+            @click="capturarFotoDesdeCamara"
+          />
+          <q-btn flat rounded color="negative" label="Cancelar" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Modal: Registrar Entrada de Inventario (QR / Manual) -->
     <q-dialog v-model="mostrarModalEntrada">
       <q-card style="min-width: 340px; max-width: 500px; border-radius: 16px">
@@ -532,13 +566,70 @@
                 label="Stock Inicial"
               />
             </div>
-            <div class="col-12">
+            <!-- Sección de Imagen de la Joya (Cámara / Galería / URL) -->
+            <div :class="editandoProducto ? 'col-sm-12' : 'col-sm-6'">
+              <label class="text-caption text-weight-bold text-grey-8">Imagen de la Joya:</label>
+
+              <!-- Vista previa de la foto -->
+              <div v-if="nuevoProducto.ImgURL" class="q-mb-sm text-center relative-position">
+                <q-img
+                  :src="nuevoProducto.ImgURL"
+                  spinner-color="primary"
+                  style="height: 140px; max-width: 100%; border-radius: 12px"
+                  fit="contain"
+                  class="bg-grey-2 shadow-1"
+                />
+                <q-btn
+                  round
+                  dense
+                  color="negative"
+                  icon="close"
+                  size="xs"
+                  class="absolute-top-right q-ma-xs"
+                  @click="nuevoProducto.ImgURL = ''"
+                >
+                  <q-tooltip>Quitar foto</q-tooltip>
+                </q-btn>
+              </div>
+
+              <!-- Botones de Acción -->
+              <div class="row q-gutter-xs q-mb-xs">
+                <q-btn
+                  outline
+                  dense
+                  color="primary"
+                  icon="photo_camera"
+                  label="Cámara"
+                  class="col text-weight-bold"
+                  @click="abrirCamaraProducto"
+                />
+                <q-btn
+                  outline
+                  dense
+                  color="secondary"
+                  icon="photo_library"
+                  label="Galería"
+                  class="col text-weight-bold"
+                  @click="abrirGaleriaProducto"
+                />
+              </div>
+
+              <!-- Input HTML oculto SOLO para GALERÍA -->
+              <input
+                ref="inputGaleriaRef"
+                type="file"
+                accept="image/*"
+                style="display: none"
+                @change="alSeleccionarFotoProducto"
+              />
+
+              <!-- Campo opcional para ingresar URL manualmente -->
               <q-input
                 v-model="nuevoProducto.ImgURL"
                 dense
                 outlined
-                label="URL de Imagen (Opcional)"
-                placeholder="https://..."
+                placeholder="O pega la URL de la imagen (https://...)"
+                class="q-mt-xs"
               />
             </div>
           </div>
@@ -591,6 +682,12 @@ const mostrarModalEntrada = ref(false)
 const mostrarModalNuevo = ref(false)
 const mostrarScanner = ref(false)
 const editandoProducto = ref(false)
+
+const mostrarModalCamara = ref(false)
+const videoFotoRef = ref(null)
+const canvasFotoRef = ref(null)
+const inputGaleriaRef = ref(null)
+let streamCamara = null
 
 let html5QrCode = null
 
@@ -725,7 +822,7 @@ function abrirModalNuevoManual() {
     sku: '',
     Nombre: '',
     Categoria: 'Collares',
-    Catalogo: 'Coleccion 126',
+    Catalogo: 'Coleccion',
     Precio: 0,
     StockInicial: 1,
     ImgURL: '',
@@ -741,7 +838,7 @@ function abrirModalEditar(prod) {
     CodigoQr: String(prod.CodigoQr || prod.sku || '').trim(),
     Nombre: prod.Nombre || '',
     Categoria: prod.Categoria || 'Collares',
-    Catalogo: prod.Catalogo || 'Coleccion 126',
+    Catalogo: prod.Catalogo || 'Coleccion',
     Precio: Number(prod.Precio || 0),
     StockInicial: Number(prod.Stock || 0),
     ImgURL: prod.ImgURL || '',
@@ -813,7 +910,10 @@ async function procesarLecturaQR(decodedText) {
   let codigoPieza = null
 
   // 1. Limpiar URL de protocolo (http/https), parámetros (?query) y hashtags (#)
-  const urlLimpia = texto.replace(/^https?:\/\//i, '').split('?')[0].split('#')[0]
+  const urlLimpia = texto
+    .replace(/^https?:\/\//i, '')
+    .split('?')[0]
+    .split('#')[0]
   const partes = urlLimpia.split('/').filter(Boolean)
 
   if (!texto.startsWith('{')) {
@@ -883,7 +983,7 @@ async function procesarLecturaQR(decodedText) {
       CodigoQr: piezaDetectada,
       Nombre: parsedInfo?.Nombre || parsedInfo?.nombre || '',
       Categoria: parsedInfo?.Categoria || parsedInfo?.categoria || 'Collares',
-      Catalogo: parsedInfo?.Catalogo || parsedInfo?.catalogo || 'Coleccion 126',
+      Catalogo: parsedInfo?.Catalogo || parsedInfo?.catalogo || 'Coleccion',
       Precio: Number(parsedInfo?.Precio || parsedInfo?.precio || 0),
       StockInicial: Number(parsedInfo?.StockInicial || parsedInfo?.cantidad || 1),
       ImgURL: parsedInfo?.ImgURL || parsedInfo?.imgUrl || '',
@@ -926,7 +1026,7 @@ async function guardarEntradaStock() {
     }
 
     const empId = Number(
-      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2
+      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2,
     )
     const cantNum = Number(cantidad || 1)
 
@@ -977,7 +1077,160 @@ async function guardarEntradaStock() {
     await cargarInventario()
   } catch (err) {
     console.error('Error al registrar entrada:', err)
-    $q.notify({ type: 'negative', message: 'Error al registrar entrada: ' + (err.response?.data?.message || err.message) })
+    $q.notify({
+      type: 'negative',
+      message: 'Error al registrar entrada: ' + (err.response?.data?.message || err.message),
+    })
+  }
+}
+
+/**
+ * Redimensiona y comprime una imagen seleccionada antes de convertirla a Base64.
+ * @param {File} file - Archivo de imagen del input.
+ * @param {number} maxWidth - Ancho máximo deseado (ej. 800px).
+ * @param {number} quality - Calidad JPEG de 0.1 a 1.0.
+ */
+function comprimirImagen(file, maxWidth = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        // Escalar manteniendo la relación de aspecto
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+
+        // Exportar como JPEG comprimido
+        const dataUrl = canvas.toDataURL('image/jpeg', quality)
+        resolve(dataUrl)
+      }
+      img.onerror = (err) => reject(err)
+    }
+    reader.onerror = (err) => reject(err)
+  })
+}
+
+// Referencias para los inputs de archivo
+
+
+/**
+ * Abre el modal e inicia la transmisión de la cámara (trasera si está en móvil)
+ */
+async function abrirCamaraProducto() {
+  mostrarModalCamara.value = true
+  await nextTick()
+
+  try {
+    // Intenta usar la cámara trasera ('environment') en móviles
+    streamCamara = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    })
+
+    if (videoFotoRef.value) {
+      videoFotoRef.value.srcObject = streamCamara
+    }
+  } catch (err) {
+    console.error('Error al acceder a la cámara:', err)
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudo acceder a la cámara: ' + (err.message || 'Permiso denegado')
+    })
+    mostrarModalCamara.value = false
+  }
+}
+
+/**
+ * Toma un cuadro (frame) del video en vivo, lo comprime y lo asigna a la joya
+ */
+async function capturarFotoDesdeCamara() {
+  const video = videoFotoRef.value
+  const canvas = canvasFotoRef.value
+
+  if (!video || !canvas) return
+
+  const maxWidth = 800 // Mismo límite que usas en galería
+  let width = video.videoWidth || 800
+  let height = video.videoHeight || 600
+
+  // Escalar manteniendo la relación de aspecto
+  if (width > maxWidth) {
+    height = Math.round((height * maxWidth) / width)
+    width = maxWidth
+  }
+
+  canvas.width = width
+  canvas.height = height
+
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(video, 0, 0, width, height)
+
+  // Obtener imagen comprimida en Base64
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+  nuevoProducto.value.ImgURL = dataUrl
+
+  $q.notify({
+    type: 'positive',
+    icon: 'check_circle',
+    message: 'Foto capturada y optimizada correctamente'
+  })
+
+  detenerCamaraFoto()
+  mostrarModalCamara.value = false
+}
+/**
+ * Detiene los tracks del stream para liberar la cámara del dispositivo
+ */
+function detenerCamaraFoto() {
+  if (streamCamara) {
+    streamCamara.getTracks().forEach((track) => track.stop())
+    streamCamara = null
+  }
+}
+
+function abrirGaleriaProducto() {
+  if (inputGaleriaRef.value) inputGaleriaRef.value.click()
+}
+
+async function alSeleccionarFotoProducto(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  $q.loading.show({ message: 'Procesando imagen...' })
+
+  try {
+    // Redimensionar a máx 800px de ancho y compresión del 70%
+    const imagenComprimidaBase64 = await comprimirImagen(file, 800, 0.7)
+    nuevoProducto.value.ImgURL = imagenComprimidaBase64
+
+    $q.notify({
+      type: 'positive',
+      icon: 'check_circle',
+      message: 'Imagen cargada y optimizada',
+    })
+  } catch (err) {
+    console.error('Error procesando la imagen:', err)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al procesar la imagen seleccionada',
+    })
+  } finally {
+    $q.loading.hide()
+    event.target.value = '' // Permitir volver a seleccionar la misma foto si se requiere
   }
 }
 
@@ -1006,7 +1259,7 @@ async function guardarEdicionProducto() {
       CodigoQr: String(p.CodigoQr || p.sku).trim(),
       Nombre: p.Nombre.trim(),
       Categoria: p.Categoria || 'Collares',
-      Catalogo: p.Catalogo || 'Coleccion 126',
+      Catalogo: p.Catalogo || 'Coleccion',
       Precio: precioNum,
       PrecioCosto: precioCosto,
       ImgURL: p.ImgURL ? p.ImgURL.trim() : null,
@@ -1051,7 +1304,7 @@ async function guardarNuevoProducto() {
     }
 
     const empId = Number(
-      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2
+      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2,
     )
     const stockInicialNum = Number(p.StockInicial || 0)
     const precioNum = Number(p.Precio || 0)
@@ -1063,7 +1316,7 @@ async function guardarNuevoProducto() {
       CodigoQr: String(p.CodigoQr || p.codigoPieza || p.sku).trim(),
       Nombre: p.Nombre.trim(),
       Categoria: p.Categoria || 'Collares',
-      Catalogo: p.Catalogo || 'Coleccion 126',
+      Catalogo: p.Catalogo || 'Coleccion',
       Precio: precioNum,
       PrecioCosto: precioNum * (1 - descuento / 100),
       ImgURL: p.ImgURL ? p.ImgURL.trim() : null,
@@ -1121,7 +1374,7 @@ async function guardarNuevoProducto() {
       sku: '',
       Nombre: '',
       Categoria: 'Collares',
-      Catalogo: 'Nice 2026',
+      Catalogo: 'Coleccion',
       Precio: 0,
       StockInicial: 1,
       ImgURL: '',
@@ -1129,7 +1382,10 @@ async function guardarNuevoProducto() {
     await cargarInventario()
   } catch (err) {
     console.error('Error al guardar producto:', err)
-    $q.notify({ type: 'negative', message: 'Error al guardar producto: ' + (err.response?.data?.message || err.message) })
+    $q.notify({
+      type: 'negative',
+      message: 'Error al guardar producto: ' + (err.response?.data?.message || err.message),
+    })
   }
 }
 
@@ -1139,6 +1395,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cerrarEscaner()
+  detenerCamaraFoto()
 })
 </script>
 

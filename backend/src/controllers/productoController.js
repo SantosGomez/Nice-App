@@ -1,14 +1,42 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { ProductoModel } from '../models/productoModel.js';
 
+// Recrear __dirname para ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 /**
- * Controlador de Productos.
- * Maneja la validación de peticiones y respuestas HTTP.
+ * Convierte una cadena Base64 en archivo físico y devuelve la ruta relativa.
  */
+function guardarFotoEnCarpeta(base64String) {
+  if (!base64String || !base64String.startsWith('data:image')) {
+    return base64String;
+  }
+
+  // Guardar en la carpeta public/images a nivel del backend
+  const carpetaDestino = path.join(__dirname, '../public/images');
+
+  if (!fs.existsSync(carpetaDestino)) {
+    fs.mkdirSync(carpetaDestino, { recursive: true });
+  }
+
+  const matches = base64String.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
+  if (!matches) return base64String;
+
+  const extension = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+  const bufferImagen = Buffer.from(matches[2], 'base64');
+
+  const nombreArchivo = `joya_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
+  const rutaCompletaArchivo = path.join(carpetaDestino, nombreArchivo);
+
+  fs.writeFileSync(rutaCompletaArchivo, bufferImagen);
+
+  return `/images/${nombreArchivo}`;
+}
+
 export const ProductoController = {
-  /**
-   * GET /api/productos
-   * Obtiene la lista de productos con soporte para filtros y stock por empresaria.
-   */
   async getProductos(req, res) {
     try {
       const { empresariaId, search, categoria } = req.query;
@@ -33,10 +61,6 @@ export const ProductoController = {
     }
   },
 
-  /**
-   * GET /api/productos/:id
-   * Obtiene un producto por su ID.
-   */
   async getProductoById(req, res) {
     try {
       const { id } = req.params;
@@ -64,10 +88,6 @@ export const ProductoController = {
     }
   },
 
-  /**
-   * GET /api/productos/find/:code
-   * Busca producto por SKU o Código QR para el lector del POS.
-   */
   async findByCode(req, res) {
     try {
       const { code } = req.params;
@@ -103,15 +123,10 @@ export const ProductoController = {
     }
   },
 
-  /**
-   * POST /api/productos
-   * Registra un nuevo producto.
-   */
   async createProducto(req, res) {
     try {
-      const { id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto, ImgURL, StockInicial, EmpresariaId } = req.body;
+      let { id, sku, CodigoQr, Nombre, Categoria, Catalogo, Precio, PrecioCosto, ImgURL, StockInicial, EmpresariaId } = req.body;
 
-      // Validaciones básicas de campos obligatorios
       if (!id || !sku || !Nombre || Precio === undefined || !Categoria || !Catalogo) {
         return res.status(400).json({
           success: false,
@@ -119,7 +134,6 @@ export const ProductoController = {
         });
       }
 
-      // Verificar si ya existe un producto con el mismo id o sku
       const existing = await ProductoModel.getById(id);
       if (existing) {
         return res.status(409).json({
@@ -127,6 +141,9 @@ export const ProductoController = {
           message: `Ya existe un producto con el ID '${id}'`
         });
       }
+
+      // Procesar la imagen si viene en Base64
+      const rutaGuardadaImg = guardarFotoEnCarpeta(ImgURL);
 
       const nuevoProducto = await ProductoModel.create({
         id,
@@ -137,7 +154,7 @@ export const ProductoController = {
         Catalogo,
         Precio: Number(Precio),
         PrecioCosto: PrecioCosto !== undefined ? Number(PrecioCosto) : 0.0,
-        ImgURL,
+        ImgURL: rutaGuardadaImg,
         StockInicial: StockInicial !== undefined ? Number(StockInicial) : 0,
         EmpresariaId: EmpresariaId ? Number(EmpresariaId) : null
       });
@@ -157,14 +174,17 @@ export const ProductoController = {
     }
   },
 
-  /**
-   * PUT /api/productos/:id
-   * Actualiza los datos de un producto.
-   */
   async updateProducto(req, res) {
     try {
       const { id } = req.params;
-      const updated = await ProductoModel.update(id, req.body);
+      const updateData = { ...req.body };
+
+      // Si se envía una nueva imagen en Base64, procesarla
+      if (updateData.ImgURL) {
+        updateData.ImgURL = guardarFotoEnCarpeta(updateData.ImgURL);
+      }
+
+      const updated = await ProductoModel.update(id, updateData);
 
       if (!updated) {
         return res.status(404).json({
@@ -190,10 +210,6 @@ export const ProductoController = {
     }
   },
 
-  /**
-   * DELETE /api/productos/:id
-   * Elimina un producto.
-   */
   async deleteProducto(req, res) {
     try {
       const { id } = req.params;
