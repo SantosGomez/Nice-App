@@ -70,7 +70,7 @@
               <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 120px;">
                 <q-img
                   v-if="prod.ImgURL"
-                  :src="prod.ImgURL"
+                  :src="formatImagenUrl(prod.ImgURL)"
                   fit="contain"
                   class="full-height rounded-borders"
                 />
@@ -417,6 +417,7 @@ import { usePosStore } from '../stores/posStore.js';
 import { useEmpresariaStore } from '../stores/empresariaStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { useNetworkStore } from '../stores/networkStore.js';
+import { formatImagenUrl } from '../utils/imageUrl.js';
 import { Html5Qrcode } from 'html5-qrcode';
 
 const $q = useQuasar();

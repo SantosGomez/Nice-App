@@ -147,7 +147,7 @@
           <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 140px">
             <q-img
               v-if="prod.ImgURL"
-              :src="prod.ImgURL"
+              :src="formatImagenUrl(prod.ImgURL)"
               fit="contain"
               class="full-height rounded-borders"
             />
@@ -573,7 +573,7 @@
               <!-- Vista previa de la foto -->
               <div v-if="nuevoProducto.ImgURL" class="q-mb-sm text-center relative-position">
                 <q-img
-                  :src="nuevoProducto.ImgURL"
+                  :src="formatImagenUrl(nuevoProducto.ImgURL)"
                   spinner-color="primary"
                   style="height: 140px; max-width: 100%; border-radius: 12px"
                   fit="contain"
@@ -644,6 +644,43 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo: Tomar Foto de la Joya con la Cámara -->
+    <q-dialog v-model="mostrarModalCamara" persistent @hide="detenerCamaraFoto">
+      <q-card style="width: 100%; max-width: 440px; border-radius: 20px" class="overflow-hidden bg-black text-white">
+        <q-card-section class="gradient-navy text-white row items-center justify-between q-py-sm">
+          <div class="row items-center q-gutter-x-xs">
+            <q-icon name="photo_camera" size="22px" color="gold" />
+            <div class="text-subtitle1 text-weight-bold text-gold brand-font">Tomar Foto de Joya</div>
+          </div>
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pa-none relative-position flex flex-center" style="min-height: 300px; background: #000;">
+          <video
+            ref="videoFotoRef"
+            autoplay
+            playsinline
+            muted
+            style="width: 100%; max-height: 380px; object-fit: cover;"
+          ></video>
+          <canvas ref="canvasFotoRef" style="display: none;"></canvas>
+        </q-card-section>
+
+        <q-card-actions align="center" class="q-pa-md bg-grey-10">
+          <q-btn
+            round
+            color="primary"
+            icon="camera"
+            size="lg"
+            class="shadow-4"
+            @click="capturarFotoDesdeCamara"
+          >
+            <q-tooltip>Capturar Foto</q-tooltip>
+          </q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -656,6 +693,7 @@ import api from '../services/api.js'
 import { useEmpresariaStore } from '../stores/empresariaStore.js'
 import { useAuthStore } from '../stores/authStore.js'
 import { useNetworkStore } from '../stores/networkStore.js'
+import { formatImagenUrl } from '../utils/imageUrl.js'
 
 const $q = useQuasar()
 const empresariaStore = useEmpresariaStore()
@@ -1155,7 +1193,7 @@ async function abrirCamaraProducto() {
 }
 
 /**
- * Toma un cuadro (frame) del video en vivo, lo comprime y lo asigna a la joya
+ * Toma un cuadro (frame) del video en vivo, lo comprime y lo sube al backend
  */
 async function capturarFotoDesdeCamara() {
   const video = videoFotoRef.value
@@ -1163,7 +1201,7 @@ async function capturarFotoDesdeCamara() {
 
   if (!video || !canvas) return
 
-  const maxWidth = 800 // Mismo límite que usas en galería
+  const maxWidth = 800
   let width = video.videoWidth || 800
   let height = video.videoHeight || 600
 
@@ -1179,19 +1217,43 @@ async function capturarFotoDesdeCamara() {
   const ctx = canvas.getContext('2d')
   ctx.drawImage(video, 0, 0, width, height)
 
-  // Obtener imagen comprimida en Base64
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
-  nuevoProducto.value.ImgURL = dataUrl
-
-  $q.notify({
-    type: 'positive',
-    icon: 'check_circle',
-    message: 'Foto capturada y optimizada correctamente'
-  })
-
+  const base64Data = canvas.toDataURL('image/jpeg', 0.8)
   detenerCamaraFoto()
   mostrarModalCamara.value = false
+
+  // Si hay conexión, subir de inmediato a /uploads en el backend
+  if (networkStore.isOnline) {
+    $q.loading.show({ message: 'Subiendo foto al servidor...' })
+    try {
+      const resp = await api.post('/upload/base64', {
+        image: base64Data,
+        filename: `joya_${nuevoProducto.value.id || nuevoProducto.value.sku || Date.now()}`
+      })
+      if (resp.data && resp.data.success && resp.data.data?.url) {
+        nuevoProducto.value.ImgURL = resp.data.data.url
+        $q.notify({
+          type: 'positive',
+          icon: 'cloud_done',
+          message: 'Foto guardada en el servidor exitosamente'
+        })
+        return
+      }
+    } catch (err) {
+      console.warn('Error subiendo foto online, usando local temporal:', err.message)
+      nuevoProducto.value.ImgURL = base64Data
+    } finally {
+      $q.loading.hide()
+    }
+  } else {
+    nuevoProducto.value.ImgURL = base64Data
+    $q.notify({
+      type: 'info',
+      icon: 'photo_camera',
+      message: 'Foto capturada en modo offline'
+    })
+  }
 }
+
 /**
  * Detiene los tracks del stream para liberar la cámara del dispositivo
  */
@@ -1207,31 +1269,79 @@ function abrirGaleriaProducto() {
 }
 
 async function alSeleccionarFotoProducto(event) {
-  const file = event.target.files[0]
+  const file = event.target.files?.[0]
   if (!file) return
 
-  $q.loading.show({ message: 'Procesando imagen...' })
+  $q.loading.show({ message: 'Procesando y subiendo imagen...' })
 
   try {
-    // Redimensionar a máx 800px de ancho y compresión del 70%
-    const imagenComprimidaBase64 = await comprimirImagen(file, 800, 0.7)
-    nuevoProducto.value.ImgURL = imagenComprimidaBase64
+    if (networkStore.isOnline) {
+      const formData = new FormData()
+      formData.append('image', file)
 
-    $q.notify({
-      type: 'positive',
-      icon: 'check_circle',
-      message: 'Imagen cargada y optimizada',
-    })
+      const resp = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      if (resp.data && resp.data.success && resp.data.data?.url) {
+        nuevoProducto.value.ImgURL = resp.data.data.url
+        $q.notify({
+          type: 'positive',
+          icon: 'cloud_done',
+          message: 'Imagen subida al servidor exitosamente'
+        })
+      } else {
+        throw new Error(resp.data?.message || 'Error al subir imagen')
+      }
+    } else {
+      const base64Data = await comprimirImagen(file, 800, 0.8)
+      nuevoProducto.value.ImgURL = base64Data
+      $q.notify({
+        type: 'info',
+        icon: 'photo',
+        message: 'Imagen guardada localmente (Modo Offline)'
+      })
+    }
   } catch (err) {
-    console.error('Error procesando la imagen:', err)
+    console.error('Error procesando imagen:', err)
     $q.notify({
       type: 'negative',
-      message: 'Error al procesar la imagen seleccionada',
+      message: 'Error al subir imagen: ' + (err.response?.data?.message || err.message)
     })
   } finally {
     $q.loading.hide()
-    event.target.value = '' // Permitir volver a seleccionar la misma foto si se requiere
+    event.target.value = ''
   }
+}
+
+/**
+ * Helper para asegurar que la URL enviada a MySQL sea una ruta corta (/uploads/...) y no un Base64 gigante
+ */
+async function asegurarUrlImagenParaBackend(imgUrl, id) {
+  if (!imgUrl || typeof imgUrl !== 'string') return null
+  const trimmed = imgUrl.trim()
+  if (!trimmed) return null
+
+  if (trimmed.startsWith('data:image/') && networkStore.isOnline) {
+    try {
+      const resp = await api.post('/upload/base64', {
+        image: trimmed,
+        filename: `joya_${id || Date.now()}`
+      })
+      if (resp.data && resp.data.success && resp.data.data?.url) {
+        return resp.data.data.url
+      }
+    } catch (e) {
+      console.warn('No se pudo convertir Base64 a archivo en servidor:', e.message)
+    }
+  }
+
+  // Si sigue siendo Base64 por estar offline, en Dexie se guarda el base64 pero para MySQL evitamos romper varchar(255)
+  if (trimmed.startsWith('data:image/')) {
+    return null
+  }
+
+  return trimmed
 }
 
 async function guardarProducto() {
@@ -1254,19 +1364,25 @@ async function guardarEdicionProducto() {
     const descuento = Number(empresariaStore.descuentoActivo || 25)
     const precioCosto = precioNum * (1 - descuento / 100)
 
+    // Asegurar que si la imagen es base64 se suba a /uploads
+    const imgUrlFinal = await asegurarUrlImagenParaBackend(p.ImgURL, p.id)
+
     const datosActualizar = {
       sku: String(p.sku).trim(),
       CodigoQr: String(p.CodigoQr || p.sku).trim(),
       Nombre: p.Nombre.trim(),
       Categoria: p.Categoria || 'Collares',
-      Catalogo: p.Catalogo || 'Coleccion',
+      Catalogo: p.Catalogo || 'Coleccion 126',
       Precio: precioNum,
       PrecioCosto: precioCosto,
-      ImgURL: p.ImgURL ? p.ImgURL.trim() : null,
+      ImgURL: imgUrlFinal || p.ImgURL || null,
     }
 
     // 1. Actualizar en Dexie
-    await db.productos.update(p.id, datosActualizar)
+    await db.productos.update(p.id, {
+      ...datosActualizar,
+      ImgURL: p.ImgURL || imgUrlFinal || null
+    })
 
     // 2. Si hay conexión a internet, enviar actualización a MySQL
     if (networkStore.isOnline) {
@@ -1310,16 +1426,19 @@ async function guardarNuevoProducto() {
     const precioNum = Number(p.Precio || 0)
     const descuento = Number(empresariaStore.descuentoActivo || 25)
 
+    // Asegurar que si la imagen es base64 se suba a /uploads
+    const imgUrlFinal = await asegurarUrlImagenParaBackend(p.ImgURL, p.id)
+
     const prodObj = {
       id: String(p.id).trim(),
       sku: String(p.sku).trim(),
       CodigoQr: String(p.CodigoQr || p.codigoPieza || p.sku).trim(),
       Nombre: p.Nombre.trim(),
       Categoria: p.Categoria || 'Collares',
-      Catalogo: p.Catalogo || 'Coleccion',
+      Catalogo: p.Catalogo || 'Coleccion 126',
       Precio: precioNum,
       PrecioCosto: precioNum * (1 - descuento / 100),
-      ImgURL: p.ImgURL ? p.ImgURL.trim() : null,
+      ImgURL: imgUrlFinal || p.ImgURL || null,
       StockInicial: stockInicialNum,
       EmpresariaId: empId,
     }
@@ -1334,7 +1453,7 @@ async function guardarNuevoProducto() {
       Catalogo: prodObj.Catalogo,
       Precio: prodObj.Precio,
       PrecioCosto: prodObj.PrecioCosto,
-      ImgURL: prodObj.ImgURL,
+      ImgURL: p.ImgURL || imgUrlFinal || null,
       Stock: stockInicialNum,
     })
 
@@ -1374,7 +1493,7 @@ async function guardarNuevoProducto() {
       sku: '',
       Nombre: '',
       Categoria: 'Collares',
-      Catalogo: 'Coleccion',
+      Catalogo: 'Nice 2026',
       Precio: 0,
       StockInicial: 1,
       ImgURL: '',

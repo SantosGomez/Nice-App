@@ -11,6 +11,7 @@ import clienteRoutes from './routes/clienteRoutes.js';
 import inventarioRoutes from './routes/inventarioRoutes.js';
 import ventaRoutes from './routes/ventaRoutes.js';
 import syncRoutes from './routes/syncRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 dotenv.config();
 
@@ -22,11 +23,12 @@ const app = express();
 
 // Middlewares globales
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); 
-app.use(express.urlencoded({ limit: '10mb', extended: true })); 
+app.use(express.json({ limit: '15mb' })); 
+app.use(express.urlencoded({ limit: '15mb', extended: true })); 
 
-// Servir la carpeta pública de imágenes
+// Servir la carpeta pública de imágenes y uploads
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Middleware para registro de peticiones
 app.use((req, res, next) => {
@@ -57,6 +59,7 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
