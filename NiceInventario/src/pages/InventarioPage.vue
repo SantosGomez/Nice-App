@@ -137,92 +137,124 @@
     </q-card>
 
     <!-- Vista Cuadrícula (Grid) -->
-    <div v-if="vistaModo === 'grid' && productosFiltrados.length > 0" class="row q-col-gutter-sm">
-      <div
-        v-for="prod in productosFiltrados"
-        :key="prod.id"
-        class="col-12 col-sm-6 col-md-4 col-lg-3"
-      >
-        <q-card flat class="rounded-borders shadow-1 bg-white column full-height">
-          <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 140px">
-            <q-img
-              v-if="prod.ImgURL"
-              :src="formatImagenUrl(prod.ImgURL)"
-              fit="contain"
-              class="full-height rounded-borders"
-            />
-            <div v-else class="column items-center justify-center full-height text-grey-5">
-              <q-icon name="diamond" size="48px" color="secondary" />
-              <span class="text-caption">Joyería Nice</span>
+    <div v-if="vistaModo === 'grid' && productosFiltrados.length > 0">
+      <div class="row q-col-gutter-sm">
+        <div
+          v-for="prod in productosPaginadosGrid"
+          :key="prod.id"
+          class="col-12 col-sm-6 col-md-4 col-lg-3"
+        >
+          <q-card flat class="rounded-borders shadow-1 bg-white column full-height">
+            <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 140px">
+              <q-img
+                v-if="prod.ImgURL"
+                :src="formatImagenUrl(prod.ImgURL)"
+                fit="contain"
+                class="full-height rounded-borders"
+              />
+              <div v-else class="column items-center justify-center full-height text-grey-5">
+                <q-icon name="diamond" size="48px" color="secondary" />
+                <span class="text-caption">Joyería Nice</span>
+              </div>
+
+              <!-- Badge de Stock -->
+              <q-badge
+                :color="prod.Stock > 0 ? 'positive' : 'negative'"
+                class="absolute-top-right q-ma-xs text-weight-bold"
+              >
+                {{ prod.Stock > 0 ? `${prod.Stock} en stock` : 'Agotado' }}
+              </q-badge>
             </div>
 
-            <!-- Badge de Stock -->
-            <q-badge
-              :color="prod.Stock > 0 ? 'positive' : 'negative'"
-              class="absolute-top-right q-ma-xs text-weight-bold"
-            >
-              {{ prod.Stock > 0 ? `${prod.Stock} en stock` : 'Agotado' }}
-            </q-badge>
-          </div>
-
-          <q-card-section class="q-pa-sm col column justify-between">
-            <div>
-              <div class="text-caption text-grey-6">
-                Código: {{ prod.id }} / Categoría: {{ prod.Categoria }}
-              </div>
-              <div class="text-weight-bold text-subtitle2 text-primary line-clamp-2">
-                {{ prod.Nombre }}
-              </div>
-            </div>
-
-            <div class="q-mt-xs">
-              <div class="row items-center justify-between">
-                <div>
-                  <div class="text-caption text-grey-6">P. Catálogo:</div>
-                  <div class="text-h6 text-weight-bolder text-primary">
-                    ${{ formatPrecio(prod.Precio) }}
-                  </div>
+            <q-card-section class="q-pa-sm col column justify-between">
+              <div>
+                <div class="text-caption text-grey-6">
+                  Código: {{ prod.id }} / Categoría: {{ prod.Categoria }}
                 </div>
-                <div class="text-right">
-                  <div class="text-caption text-grey-6">
-                    Costo ({{ empresariaStore.descuentoActivo }}%):
-                  </div>
-                  <div class="text-caption text-weight-bold text-secondary">
-                    ${{ formatPrecio(prod.Precio * (1 - empresariaStore.descuentoActivo / 100)) }}
-                  </div>
+                <div class="text-weight-bold text-subtitle2 text-primary line-clamp-2">
+                  {{ prod.Nombre }}
                 </div>
               </div>
 
-              <!-- Botones de Acción: Entrada de Stock y Edición -->
-              <div class="row q-gutter-xs q-mt-sm">
-                <q-btn
-                  outline
-                  dense
-                  size="sm"
-                  color="primary"
-                  label="Entrada"
-                  icon="add"
-                  class="col text-weight-bold"
-                  @click="abrirEntradaRapida(prod)"
-                >
-                  <q-tooltip>Ingresar piezas al stock</q-tooltip>
-                </q-btn>
-                <q-btn
-                  flat
-                  dense
-                  size="sm"
-                  color="primary"
-                  label="Editar"
-                  icon="edit"
-                  class="col text-weight-bold bg-amber-1"
-                  @click="abrirModalEditar(prod)"
-                >
-                  <q-tooltip>Editar datos de la joya</q-tooltip>
-                </q-btn>
+              <div class="q-mt-xs">
+                <div class="row items-center justify-between">
+                  <div>
+                    <div class="text-caption text-grey-6">P. Catálogo:</div>
+                    <div class="text-h6 text-weight-bolder text-primary">
+                      ${{ formatPrecio(prod.Precio) }}
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-caption text-grey-6">
+                      Costo ({{ empresariaStore.descuentoActivo }}%):
+                    </div>
+                    <div class="text-caption text-weight-bold text-secondary">
+                      ${{ formatPrecio(prod.Precio * (1 - empresariaStore.descuentoActivo / 100)) }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Botones de Acción: Entrada de Stock y Edición -->
+                <div class="row q-gutter-xs q-mt-sm">
+                  <q-btn
+                    outline
+                    dense
+                    size="sm"
+                    color="primary"
+                    label="Entrada"
+                    icon="add"
+                    class="col text-weight-bold"
+                    @click="abrirEntradaRapida(prod)"
+                  >
+                    <q-tooltip>Ingresar piezas al stock</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    size="sm"
+                    color="primary"
+                    label="Editar"
+                    icon="edit"
+                    class="col text-weight-bold bg-amber-1"
+                    @click="abrirModalEditar(prod)"
+                  >
+                    <q-tooltip>Editar datos de la joya</q-tooltip>
+                  </q-btn>
+                </div>
               </div>
-            </div>
-          </q-card-section>
-        </q-card>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <!-- Paginación Vista Cuadrícula -->
+      <div class="row items-center justify-between q-mt-md q-pa-sm bg-white rounded-borders shadow-1 wrap q-gutter-y-sm">
+        <div class="text-caption text-grey-7 row items-center q-gutter-x-sm">
+          <span>
+            Mostrando <b>{{ inicioRegistroGrid }}</b> a <b>{{ finRegistroGrid }}</b> de <b>{{ productosFiltrados.length }}</b> joyas
+          </span>
+          <q-select
+            v-model="porPaginaGrid"
+            :options="[8, 12, 16, 24, 48]"
+            dense
+            outlined
+            options-dense
+            style="min-width: 80px"
+            label="Por pág."
+          />
+        </div>
+        <q-pagination
+          v-model="paginaActualGrid"
+          :max="maxPaginasGrid"
+          :max-pages="6"
+          boundary-numbers
+          direction-links
+          color="primary"
+          active-color="secondary"
+          active-text-color="dark"
+          gutter="xs"
+          dense
+        />
       </div>
     </div>
 
@@ -833,6 +865,43 @@ const productosFiltrados = computed(() => {
       p.CodigoQr?.toLowerCase().includes(q)
     )
   })
+})
+
+// Paginación para vista cuadrícula
+const paginaActualGrid = ref(1)
+const porPaginaGrid = ref(12)
+
+const maxPaginasGrid = computed(() => {
+  return Math.ceil(productosFiltrados.value.length / porPaginaGrid.value) || 1
+})
+
+const productosPaginadosGrid = computed(() => {
+  const start = (paginaActualGrid.value - 1) * porPaginaGrid.value
+  return productosFiltrados.value.slice(start, start + porPaginaGrid.value)
+})
+
+const inicioRegistroGrid = computed(() => {
+  if (productosFiltrados.value.length === 0) return 0
+  return (paginaActualGrid.value - 1) * porPaginaGrid.value + 1
+})
+
+const finRegistroGrid = computed(() => {
+  return Math.min(
+    paginaActualGrid.value * porPaginaGrid.value,
+    productosFiltrados.value.length,
+  )
+})
+
+// Al cambiar filtros o selector de elementos por página, volver a la página 1
+watch([filtroBusqueda, categoriaSeleccionada, porPaginaGrid], () => {
+  paginaActualGrid.value = 1
+})
+
+// Si la cantidad de páginas disminuye por debajo de la actual, ajustar
+watch(maxPaginasGrid, (newMax) => {
+  if (paginaActualGrid.value > newMax) {
+    paginaActualGrid.value = newMax
+  }
 })
 
 const totalPiezasStock = computed(() => {
