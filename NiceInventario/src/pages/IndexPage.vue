@@ -56,67 +56,99 @@
         </q-card>
 
         <!-- Cuadrícula de Productos -->
-        <div v-if="productosFiltrados.length > 0" class="row q-col-gutter-sm">
-          <div
-            v-for="prod in productosFiltrados"
-            :key="prod.id"
-            class="col-6 col-sm-4 col-md-4 col-lg-3"
-          >
-            <q-card
-              class="touch-card column full-height no-shadow border-light bg-white"
-              @click="agregarAlCarrito(prod)"
+        <div v-if="productosFiltrados.length > 0">
+          <div class="row q-col-gutter-sm">
+            <div
+              v-for="prod in productosPaginadosGrid"
+              :key="prod.id"
+              class="col-6 col-sm-4 col-md-4 col-lg-3"
             >
-              <!-- Imagen o Placeholder con Icono Elegante -->
-              <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 120px;">
-                <q-img
-                  v-if="prod.ImgURL"
-                  :src="formatImagenUrl(prod.ImgURL)"
-                  fit="contain"
-                  class="full-height rounded-borders"
-                />
-                <div v-else class="column items-center justify-center full-height text-grey-5">
-                  <q-icon name="diamond" size="42px" color="secondary" />
-                  <span class="text-caption" style="font-size: 0.65rem;">Nice Joyería</span>
-                </div>
-
-                <!-- Badge de Stock de la Empresaria -->
-                <q-badge
-                  :color="prod.Stock > 0 ? 'positive' : 'grey-6'"
-                  class="absolute-top-right q-ma-xs text-weight-bold"
-                >
-                  {{ prod.Stock > 0 ? `${prod.Stock} disp.` : 'Sin stock' }}
-                </q-badge>
-              </div>
-
-              <q-card-section class="q-pa-sm col column justify-between">
-                <div>
-                  <div class="text-caption text-grey-6 text-weight-medium">
-                    Código: {{ prod.id }}
-                  </div>
-                  <div class="text-caption text-grey-6 text-weight-medium">
-                    Categoría: {{ prod.Categoria }}
-                  </div>
-                  <div class="text-weight-bold text-subtitle2 text-primary line-clamp-2" style="min-height: 38px; margin-top: 5px;">
-                    {{ prod.Nombre }}
-                  </div>
-                </div>
-
-                <div class="row items-center justify-between q-mt-xs">
-                  <div class="text-h6 text-weight-bolder text-primary">
-                    ${{ formatPrecio(prod.Precio) }}
-                  </div>
-                  <q-btn
-                    round
-                    dense
-                    size="sm"
-                    color="secondary"
-                    text-color="primary"
-                    icon="add"
-                    class="shadow-1"
+              <q-card
+                class="touch-card column full-height no-shadow border-light bg-white"
+                @click="agregarAlCarrito(prod)"
+              >
+                <!-- Imagen o Placeholder con Icono Elegante -->
+                <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 120px;">
+                  <q-img
+                    v-if="prod.ImgURL"
+                    :src="formatImagenUrl(prod.ImgURL)"
+                    fit="contain"
+                    class="full-height rounded-borders"
                   />
+                  <div v-else class="column items-center justify-center full-height text-grey-5">
+                    <q-icon name="diamond" size="42px" color="secondary" />
+                    <span class="text-caption" style="font-size: 0.65rem;">Nice Joyería</span>
+                  </div>
+
+                  <!-- Badge de Stock de la Empresaria -->
+                  <q-badge
+                    :color="prod.Stock > 0 ? 'positive' : 'grey-6'"
+                    class="absolute-top-right q-ma-xs text-weight-bold"
+                  >
+                    {{ prod.Stock > 0 ? `${prod.Stock} disp.` : 'Sin stock' }}
+                  </q-badge>
                 </div>
-              </q-card-section>
-            </q-card>
+
+                <q-card-section class="q-pa-sm col column justify-between">
+                  <div>
+                    <div class="text-caption text-grey-6 text-weight-medium">
+                      Código: {{ prod.id }}
+                    </div>
+                    <div class="text-caption text-grey-6 text-weight-medium">
+                      Categoría: {{ prod.Categoria }}
+                    </div>
+                    <div class="text-weight-bold text-subtitle2 text-primary line-clamp-2" style="min-height: 38px; margin-top: 5px;">
+                      {{ prod.Nombre }}
+                    </div>
+                  </div>
+
+                  <div class="row items-center justify-between q-mt-xs">
+                    <div class="text-h6 text-weight-bolder text-primary">
+                      ${{ formatPrecio(prod.Precio) }}
+                    </div>
+                    <q-btn
+                      round
+                      dense
+                      size="sm"
+                      color="secondary"
+                      text-color="primary"
+                      icon="add"
+                      class="shadow-1"
+                    />
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
+
+          <!-- Paginación Vista Cuadrícula POS -->
+          <div class="row items-center justify-between q-mt-md q-pa-sm bg-white rounded-borders shadow-1 wrap q-gutter-y-sm">
+            <div class="text-caption text-grey-7 row items-center q-gutter-x-sm">
+              <span>
+                Mostrando <b>{{ inicioRegistroGrid }}</b> a <b>{{ finRegistroGrid }}</b> de <b>{{ productosFiltrados.length }}</b> joyas
+              </span>
+              <q-select
+                v-model="porPaginaGrid"
+                :options="[8, 12, 16, 24, 48]"
+                dense
+                outlined
+                options-dense
+                style="min-width: 80px"
+                label="Por pág."
+              />
+            </div>
+            <q-pagination
+              v-model="paginaActualGrid"
+              :max="maxPaginasGrid"
+              :max-pages="5"
+              boundary-numbers
+              direction-links
+              color="primary"
+              active-color="secondary"
+              active-text-color="dark"
+              gutter="xs"
+              dense
+            />
           </div>
         </div>
 
@@ -521,6 +553,43 @@ const productosFiltrados = computed(() => {
       p.CodigoQr?.toLowerCase().includes(query)
     );
   });
+});
+
+// Paginación para catálogo de productos
+const paginaActualGrid = ref(1);
+const porPaginaGrid = ref(12);
+
+const maxPaginasGrid = computed(() => {
+  return Math.ceil(productosFiltrados.value.length / porPaginaGrid.value) || 1;
+});
+
+const productosPaginadosGrid = computed(() => {
+  const start = (paginaActualGrid.value - 1) * porPaginaGrid.value;
+  return productosFiltrados.value.slice(start, start + porPaginaGrid.value);
+});
+
+const inicioRegistroGrid = computed(() => {
+  if (productosFiltrados.value.length === 0) return 0;
+  return (paginaActualGrid.value - 1) * porPaginaGrid.value + 1;
+});
+
+const finRegistroGrid = computed(() => {
+  return Math.min(
+    paginaActualGrid.value * porPaginaGrid.value,
+    productosFiltrados.value.length
+  );
+});
+
+// Al cambiar filtros o selector de elementos por página, volver a la página 1
+watch([filtroBusqueda, categoriaSeleccionada, porPaginaGrid], () => {
+  paginaActualGrid.value = 1;
+});
+
+// Si la cantidad de páginas disminuye por debajo de la actual, ajustar
+watch(maxPaginasGrid, (newMax) => {
+  if (paginaActualGrid.value > newMax) {
+    paginaActualGrid.value = newMax;
+  }
 });
 
 // Filtro de clientes
