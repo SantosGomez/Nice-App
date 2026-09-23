@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { VentaController } from '../controllers/ventaController.js';
+import { verificarToken } from '../middlewares/authMiddleware.js';
 
 const router = Router();
+
+// Todas las rutas de ventas requieren autenticación
+router.use(verificarToken);
 
 // Registrar una nueva venta completa (transacción con partidas, pagos y stock)
 router.post('/', VentaController.crearVenta);

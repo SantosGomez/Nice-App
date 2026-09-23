@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+
 import authRoutes from './routes/authRoutes.js';
 import productoRoutes from './routes/productoRoutes.js';
 import empresariaRoutes from './routes/empresariaRoutes.js';
@@ -21,8 +24,44 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Middlewares globales
-app.use(cors());
+// Cabeceras de seguridad HTTP con Helmet (permitiendo recursos cruzados para imágenes)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
+
+// Configuración de CORS segura
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+  : ['http://localhost:9000', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:9000'];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Permitir peticiones sin origen (apps móviles, scripts internos) o en desarrollo / whitelist
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+    },
+    credentials: true
+  })
+);
+
+// Rate limiter global para proteger la API contra saturación / DoS
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 1200, // hasta 1200 peticiones cada 15 min por IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Límite de peticiones alcanzado. Por favor intenta de nuevo en unos minutos.'
+  }
+});
+app.use('/api', apiLimiter);
+
 app.use(express.json({ limit: '15mb' })); 
 app.use(express.urlencoded({ limit: '15mb', extended: true })); 
 

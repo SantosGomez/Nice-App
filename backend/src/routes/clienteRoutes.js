@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { ClienteController } from '../controllers/clienteController.js';
+import { verificarToken } from '../middlewares/authMiddleware.js';
 
 const router = Router();
+
+// Todas las rutas de clientes requieren autenticación
+router.use(verificarToken);
 
 // Listar clientes (soporta ?search=...)
 router.get('/', ClienteController.getClientes);

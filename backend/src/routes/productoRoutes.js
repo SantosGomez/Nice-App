@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { ProductoController } from '../controllers/productoController.js';
+import { verificarToken, soloAdmin } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
-// Rutas de Productos
+// Todas las rutas de productos requieren autenticación
+router.use(verificarToken);
+
 // Listar productos (con soporte de ?empresariaId=X, ?search=Y, ?categoria=Z)
 router.get('/', ProductoController.getProductos);
 
@@ -19,7 +22,7 @@ router.post('/', ProductoController.createProducto);
 // Actualizar producto existente
 router.put('/:id', ProductoController.updateProducto);
 
-// Eliminar producto
-router.delete('/:id', ProductoController.deleteProducto);
+// Eliminar producto (restringido a administradores)
+router.delete('/:id', soloAdmin, ProductoController.deleteProducto);
 
 export default router;
