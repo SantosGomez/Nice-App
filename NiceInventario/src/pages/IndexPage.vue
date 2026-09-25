@@ -537,6 +537,8 @@
           </div>
         </q-card-actions>
       </q-card>
+    </q-dialog>
+
     <!-- Barra Flotante de Carrito Móvil (Acceso rápido con pulgar) -->
     <div
       v-if="posStore.carrito.length > 0"
