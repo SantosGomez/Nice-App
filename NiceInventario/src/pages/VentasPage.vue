@@ -11,26 +11,40 @@
         </div>
       </div>
 
-      <!-- Tarjetas de Resumen -->
+      <!-- Tarjetas de Resumen y Exportar -->
       <div class="col-12 col-md-6">
-        <div class="row q-col-gutter-sm">
-          <div class="col-4">
+        <div class="row q-col-gutter-sm items-center">
+          <div class="col-3">
             <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
               <div class="text-caption text-grey-6">Ventas</div>
               <div class="text-h6 text-weight-bolder text-primary">{{ ventas.length }}</div>
             </q-card>
           </div>
-          <div class="col-4">
+          <div class="col-3">
             <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
               <div class="text-caption text-grey-6">Ingresos</div>
               <div class="text-h6 text-weight-bolder text-positive">${{ formatPrecio(totalIngresos) }}</div>
             </q-card>
           </div>
-          <div class="col-4">
+          <div class="col-3">
             <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
               <div class="text-caption text-grey-6">Por Cobrar</div>
               <div class="text-h6 text-weight-bolder text-warning">${{ formatPrecio(totalPorCobrar) }}</div>
             </q-card>
+          </div>
+          <div class="col-3 text-center">
+            <q-btn
+              flat
+              rounded
+              dense
+              color="primary"
+              icon="download"
+              label="Excel"
+              class="full-width bg-white shadow-1 text-weight-bold q-py-xs"
+              @click="exportarExcelVentas"
+            >
+              <q-tooltip>Descargar reporte de ventas en Excel</q-tooltip>
+            </q-btn>
           </div>
         </div>
       </div>
@@ -149,7 +163,7 @@
               outline
               dense
               color="primary"
-              label="Ver Ticket"
+              label="Ticket"
               icon="receipt"
               class="col text-weight-bold"
               @click="verDetalleVenta(v)"
@@ -165,6 +179,18 @@
               class="col text-weight-bolder"
               @click="abrirModalAbono(v)"
             />
+            <q-btn
+              v-if="v.Estado === 'PENDIENTE'"
+              flat
+              dense
+              round
+              color="positive"
+              icon="chat"
+              class="bg-green-1"
+              @click="enviarRecordatorioWhatsApp(v)"
+            >
+              <q-tooltip>Enviar recordatorio de abono por WhatsApp</q-tooltip>
+            </q-btn>
           </q-card-actions>
         </q-card>
       </div>
@@ -222,7 +248,7 @@
             </q-item>
           </q-list>
 
-          <div class="bg-grey-2 q-pa-sm rounded-borders">
+          <div class="bg-grey-2 q-pa-sm rounded-borders q-mb-md">
             <div class="row justify-between text-body1 text-weight-bold text-primary">
               <span>Total:</span>
               <span>${{ formatPrecio(ventaSeleccionada.total) }}</span>
@@ -231,6 +257,25 @@
               <span>Saldo Pendiente:</span>
               <span>${{ formatPrecio(ventaSeleccionada.SaldoPendiente) }}</span>
             </div>
+          </div>
+
+          <!-- Botones de Acción del Ticket -->
+          <div class="row q-gutter-xs">
+            <q-btn
+              unelevated
+              class="col bg-positive text-white text-weight-bold"
+              icon="chat"
+              label="WhatsApp"
+              @click="enviarTicketDetalleWhatsApp"
+            />
+            <q-btn
+              outline
+              color="primary"
+              icon="print"
+              label="Imprimir"
+              class="col text-weight-bold"
+              @click="imprimirTicket"
+            />
           </div>
         </q-card-section>
       </q-card>
@@ -454,6 +499,144 @@ async function guardarAbono() {
     await cargarVentas();
   } catch (err) {
     $q.notify({ type: 'negative', message: 'Error al registrar abono: ' + err.message });
+  }
+}
+
+async function enviarRecordatorioWhatsApp(v) {
+  let tel = v.ClienteTelefono || '';
+  if (!tel && v.Cliente_Id) {
+    const c = await db.clientes.get(v.Cliente_Id);
+    if (c?.Telefono) tel = c.Telefono;
+  }
+
+  const nombreCliente = v.ClienteNombre || 'Estimada clienta';
+  const folio = v.IdVenta.substring(0, 8).toUpperCase();
+  const total = Number(v.total).toFixed(2);
+  const pagado = Number(v.TotalPagado || 0).toFixed(2);
+  const saldo = Number(v.SaldoPendiente || 0).toFixed(2);
+
+  const msg =
+    `Hola ${nombreCliente} 👋 Te saludamos con gusto de Joyería Nice ✨\n` +
+    `Te compartimos el estado de tu apartado:\n` +
+    `🧾 *Folio:* #${folio}\n` +
+    `💰 *Total de Joyas:* $${total}\n` +
+    `💵 *Abonado:* $${pagado}\n` +
+    `⚠️ *SALDO PENDIENTE:* $${saldo}\n` +
+    `--------------------------------\n` +
+    `¿Deseas programar tu abono o pasar a recoger tus piezas? Quedamos a tus órdenes 💍💎✨`;
+
+  const encoded = encodeURIComponent(msg);
+  const telLimpio = String(tel || '').replace(/\D/g, '');
+
+  const url = telLimpio
+    ? `https://wa.me/${telLimpio.length === 10 ? '52' + telLimpio : telLimpio}?text=${encoded}`
+    : `https://wa.me/?text=${encoded}`;
+
+  window.open(url, '_blank');
+}
+
+async function enviarTicketDetalleWhatsApp() {
+  if (!ventaSeleccionada.value) return;
+  const v = ventaSeleccionada.value;
+  const folio = v.IdVenta.substring(0, 8).toUpperCase();
+  const fechaStr = formatFecha(v.created_at);
+
+  const itemsStr = detalleItems.value
+    .map(
+      (i) =>
+        `• ${i.Cantidad}x ${i.ProductoNombre || i.ProductoId} ($${Number(i.Precio_unit).toFixed(2)}) = $${(i.Cantidad * i.Precio_unit).toFixed(2)}`
+    )
+    .join('\n');
+
+  const titulo =
+    v.TipoVenta === 'APARTADO'
+      ? '💎 *COMPROBANTE DE APARTADO NICE* 💎'
+      : '💎 *COMPROBANTE DE VENTA NICE* 💎';
+
+  let msg =
+    `${titulo}\n` +
+    `📅 *Fecha:* ${fechaStr}\n` +
+    `🧾 *Folio:* #${folio}\n` +
+    `👤 *Cliente:* ${v.ClienteNombre || 'Venta General'}\n` +
+    `--------------------------------\n` +
+    `🛍️ *DETALLE:*\n${itemsStr}\n` +
+    `--------------------------------\n` +
+    `💰 *TOTAL:* $${Number(v.total).toFixed(2)}\n` +
+    `💵 *PAGADO:* $${Number(v.TotalPagado || 0).toFixed(2)}\n`;
+
+  if (v.SaldoPendiente > 0) {
+    msg += `⚠️ *SALDO PENDIENTE:* $${Number(v.SaldoPendiente).toFixed(2)}\n`;
+  }
+
+  msg +=
+    `--------------------------------\n` +
+    `¡Muchas gracias por tu compra en Joyería Nice! 💍✨`;
+
+  let tel = v.ClienteTelefono || '';
+  if (!tel && v.Cliente_Id) {
+    const c = await db.clientes.get(v.Cliente_Id);
+    if (c?.Telefono) tel = c.Telefono;
+  }
+
+  const encoded = encodeURIComponent(msg);
+  const telLimpio = String(tel || '').replace(/\D/g, '');
+
+  const url = telLimpio
+    ? `https://wa.me/${telLimpio.length === 10 ? '52' + telLimpio : telLimpio}?text=${encoded}`
+    : `https://wa.me/?text=${encoded}`;
+
+  window.open(url, '_blank');
+}
+
+function imprimirTicket() {
+  window.print();
+}
+
+async function exportarExcelVentas() {
+  try {
+    const XLSX = await import('xlsx');
+    const dataToExport = ventasFiltradas.value.map((v) => ({
+      'Folio': '#' + v.IdVenta.substring(0, 8).toUpperCase(),
+      'Fecha': formatFecha(v.created_at),
+      'Cliente': v.ClienteNombre || 'Mostrador / General',
+      'Tipo': v.TipoVenta,
+      'Estado': v.Estado,
+      'Total ($)': Number(v.total || 0),
+      'Total Pagado ($)': Number(v.TotalPagado || 0),
+      'Saldo Pendiente ($)': Number(v.SaldoPendiente || 0),
+      'Sincronizado': v.synced ? 'Sí' : 'No (Local)'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Ventas');
+
+    worksheet['!cols'] = [
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 28 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 14 }
+    ];
+
+    const fechaStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Ventas_Nice_${fechaStr}.xlsx`);
+
+    $q.notify({
+      type: 'positive',
+      message: 'Reporte de ventas exportado a Excel exitosamente.',
+      icon: 'file_download'
+    });
+  } catch (err) {
+    console.error('Error exportando ventas:', err);
+    $q.notify({
+      type: 'negative',
+      message: 'Error al exportar ventas a Excel: ' + err.message
+    });
   }
 }
 

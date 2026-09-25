@@ -50,6 +50,33 @@
               class="text-weight-bold"
               @click="abrirModalNuevoManual"
             />
+            <!-- Botón de Exportar Reportes -->
+            <q-btn-dropdown
+              flat
+              rounded
+              dense
+              color="primary"
+              icon="download"
+              label="Exportar"
+              class="text-weight-bold bg-grey-2 q-px-sm"
+            >
+              <q-list>
+                <q-item clickable v-close-popup @click="exportarExcel">
+                  <q-item-section avatar><q-icon name="table_chart" color="positive" /></q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold">Descargar Excel (.xlsx)</q-item-label>
+                    <q-item-label caption>Exportar joyas con stock y costos</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="imprimirInventario">
+                  <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold">Imprimir Catálogo / PDF</q-item-label>
+                    <q-item-label caption>Generar reporte imprimible</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-btn-dropdown>
           </div>
         </div>
       </div>
@@ -599,7 +626,7 @@
               />
             </div>
             <!-- Sección de Imagen de la Joya (Cámara / Galería / URL) -->
-            <div :class="editandoProducto ? 'col-sm-12' : 'col-sm-6'">
+            <div class = "col-sm-12 col-sm-6">
               <label class="text-caption text-weight-bold text-grey-8">Imagen de la Joya:</label>
 
               <!-- Vista previa de la foto -->
@@ -720,6 +747,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
 import { Html5Qrcode } from 'html5-qrcode'
+import * as XLSX from 'xlsx'
 import db from '../db/index.js'
 import api from '../services/api.js'
 import { useEmpresariaStore } from '../stores/empresariaStore.js'
@@ -910,6 +938,63 @@ const totalPiezasStock = computed(() => {
 
 function formatPrecio(val) {
   return Number(val || 0).toFixed(2)
+}
+
+function exportarExcel() {
+  try {
+    const dataToExport = productosFiltrados.value.map((p) => {
+      const descuento = Number(empresariaStore.descuentoActivo || 25) / 100
+      const costo = p.Precio * (1 - descuento)
+      const stock = Number(p.Stock || 0)
+      return {
+        'Código / ID': p.id,
+        SKU: p.sku || '',
+        Nombre: p.Nombre || '',
+        Categoría: p.Categoria || '',
+        Catálogo: p.Catalogo || '',
+        'Precio Catálogo ($)': Number(p.Precio || 0),
+        'Costo Empresaria ($)': Number(costo.toFixed(2)),
+        'Stock (Piezas)': stock,
+        'Valor Total Stock ($)': Number((stock * p.Precio).toFixed(2)),
+      }
+    })
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventario')
+
+    // Ancho de columnas
+    worksheet['!cols'] = [
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 30 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 20 },
+    ]
+
+    const fechaStr = new Date().toISOString().split('T')[0]
+    XLSX.writeFile(workbook, `Inventario_Nice_${fechaStr}.xlsx`)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Reporte Excel generado exitosamente.',
+      icon: 'file_download',
+    })
+  } catch (err) {
+    console.error('Error exportando a Excel:', err)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al exportar archivo Excel: ' + err.message,
+    })
+  }
+}
+
+function imprimirInventario() {
+  window.print()
 }
 
 function abrirModalEntrada() {

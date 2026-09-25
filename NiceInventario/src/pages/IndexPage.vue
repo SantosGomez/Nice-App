@@ -437,6 +437,107 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo: Comprobante / Ticket de Venta y Apartado -->
+    <q-dialog v-model="mostrarModalTicket" persistent>
+      <q-card style="min-width: 340px; max-width: 480px; border-radius: 20px;" class="overflow-hidden bg-white">
+        <q-card-section class="gradient-navy text-white text-center q-py-md">
+          <q-icon name="diamond" size="36px" color="secondary" class="q-mb-xs" />
+          <div class="text-h6 brand-font text-gold">
+            {{ ticketVenta?.TipoVenta === 'APARTADO' ? 'Apartado Registrado' : '¡Venta Exitosa!' }}
+          </div>
+          <div class="text-caption text-grey-4">
+            Folio: #{{ ticketVenta?.Folio }} • {{ formatFechaHora(ticketVenta?.Fecha) }}
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-pa-md">
+          <!-- Datos de Cliente y Empresaria -->
+          <div class="bg-grey-1 q-pa-sm rounded-borders q-mb-sm text-caption text-grey-8">
+            <div class="row justify-between">
+              <span>Cliente:</span>
+              <strong class="text-primary">{{ ticketVenta?.Cliente ? ticketVenta.Cliente.Nombre : 'Venta General / Mostrador' }}</strong>
+            </div>
+            <div v-if="ticketVenta?.empresaria" class="row justify-between q-mt-xs">
+              <span>Distribuidora:</span>
+              <strong class="text-secondary">{{ ticketVenta.empresaria.Nombre }}</strong>
+            </div>
+          </div>
+
+          <!-- Lista de Artículos -->
+          <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">Artículos:</div>
+          <q-list dense separator class="border-light rounded-borders q-mb-md" style="max-height: 180px; overflow-y: auto;">
+            <q-item v-for="item in ticketVenta?.items" :key="item.id">
+              <q-item-section>
+                <q-item-label class="text-weight-bold text-primary ellipsis">{{ item.Nombre }}</q-item-label>
+                <q-item-label caption>{{ item.cantidad }} x ${{ formatPrecio(item.Precio) }}</q-item-label>
+              </q-item-section>
+              <q-item-section side class="text-weight-bolder text-primary">
+                ${{ formatPrecio(item.cantidad * item.Precio) }}
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <!-- Resumen de Pagos -->
+          <div class="bg-grey-2 q-pa-sm rounded-borders q-mb-md">
+            <div class="row justify-between text-subtitle1 text-weight-bold text-primary">
+              <span>Total de la Venta:</span>
+              <span>${{ formatPrecio(ticketVenta?.total) }}</span>
+            </div>
+            <div v-if="ticketVenta?.TipoVenta === 'APARTADO'" class="row justify-between text-body2 text-positive q-mt-xs">
+              <span>Enganche / Abono:</span>
+              <span class="text-weight-bold">+${{ formatPrecio(ticketVenta?.abonoInicial) }}</span>
+            </div>
+            <div v-if="ticketVenta?.TipoVenta === 'APARTADO'" class="row justify-between text-subtitle2 text-weight-bolder text-warning q-mt-xs border-top q-pt-xs">
+              <span>Saldo Pendiente:</span>
+              <span>${{ formatPrecio(ticketVenta?.saldoPendiente) }}</span>
+            </div>
+          </div>
+
+          <!-- Campo para WhatsApp -->
+          <div class="q-mb-sm">
+            <label class="text-caption text-weight-bold text-grey-8">WhatsApp del Cliente:</label>
+            <q-input
+              v-model="telefonoEnvioTicket"
+              dense
+              outlined
+              placeholder="Número de WhatsApp (ej. 5512345678)"
+              class="q-mt-xs"
+            >
+              <template #prepend><q-icon name="phone" color="primary" /></template>
+            </q-input>
+          </div>
+        </q-card-section>
+
+        <!-- Botones de Acción -->
+        <q-card-actions align="center" class="q-pa-md q-pt-none column q-gutter-y-xs">
+          <q-btn
+            unelevated
+            class="full-width text-weight-bold bg-positive text-white q-py-sm"
+            icon="chat"
+            label="Enviar Ticket por WhatsApp"
+            @click="compartirTicketWhatsApp"
+          />
+          <div class="row q-gutter-x-xs full-width q-mt-xs">
+            <q-btn
+              outline
+              color="primary"
+              icon="print"
+              label="Imprimir"
+              class="col text-weight-bold"
+              @click="imprimirTicket"
+            />
+            <q-btn
+              unelevated
+              color="primary"
+              label="Nueva Venta"
+              class="col text-weight-bold"
+              v-close-popup
+            />
+          </div>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -467,6 +568,11 @@ const categorias = ref(['Todos', 'Collares', 'Aretes', 'Pulseras', 'Anillos', 'D
 const mostrarDialogoCliente = ref(false);
 const busquedaCliente = ref('');
 const nuevoCliente = ref({ Nombre: '', Telefono: '', Nota: '' });
+
+// Ticket y WhatsApp
+const mostrarModalTicket = ref(false);
+const ticketVenta = ref(null);
+const telefonoEnvioTicket = ref('');
 
 const mostrarScanner = ref(false);
 let html5QrCode = null;
@@ -648,15 +754,75 @@ async function confirmarCobro() {
     // Actualizar catálogo local de stock
     await cargarCatalogoLocal();
 
-    $q.dialog({
-      title: '💎 ¡Venta Registrada Exitosamente!',
-      message: `Folio: #${venta.IdVenta.substring(0, 8)}\nTotal: $${formatPrecio(venta.total)}\nGuardada en la tablet y lista para sincronizar.`,
-      ok: { label: 'Nueva Venta', color: 'primary' }
-    });
+    ticketVenta.value = venta;
+    telefonoEnvioTicket.value = venta.Cliente?.Telefono || '';
+    mostrarModalTicket.value = true;
   } catch (err) {
     $q.loading.hide();
     $q.notify({ type: 'negative', message: err.message || 'Error al cobrar la venta' });
   }
+}
+
+function formatFechaHora(fecha) {
+  if (!fecha) return '';
+  return new Date(fecha).toLocaleString('es-MX', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  });
+}
+
+function compartirTicketWhatsApp() {
+  if (!ticketVenta.value) return;
+  const v = ticketVenta.value;
+  const fechaStr = formatFechaHora(v.Fecha);
+
+  const itemsStr = v.items
+    .map(
+      (i) =>
+        `• ${i.cantidad}x ${i.Nombre} ($${Number(i.Precio).toFixed(2)}) = $${(i.cantidad * i.Precio).toFixed(2)}`
+    )
+    .join('\n');
+
+  const titulo =
+    v.TipoVenta === 'APARTADO'
+      ? '💎 *COMPROBANTE DE APARTADO NICE* 💎'
+      : '💎 *COMPROBANTE DE VENTA NICE* 💎';
+
+  let msg =
+    `${titulo}\n` +
+    `📅 *Fecha:* ${fechaStr}\n` +
+    `🧾 *Folio:* #${v.Folio}\n` +
+    (v.empresaria ? `👩‍💼 *Distribuidora:* ${v.empresaria.Nombre}\n` : '') +
+    `👤 *Cliente:* ${v.Cliente ? v.Cliente.Nombre : 'Venta General / Mostrador'}\n` +
+    `--------------------------------\n` +
+    `🛍️ *DETALLE DE JOYAS:*\n${itemsStr}\n` +
+    `--------------------------------\n` +
+    `💰 *TOTAL:* $${Number(v.total).toFixed(2)}\n`;
+
+  if (v.TipoVenta === 'APARTADO') {
+    msg +=
+      `💵 *Enganche / Abono:* $${Number(v.abonoInicial).toFixed(2)}\n` +
+      `⚠️ *SALDO PENDIENTE:* $${Number(v.saldoPendiente).toFixed(2)}\n`;
+  } else {
+    msg += `💵 *Pagado:* $${Number(v.total).toFixed(2)} (${v.MetodoPago || 'Efectivo'})\n`;
+  }
+
+  msg +=
+    `--------------------------------\n` +
+    `¡Muchas gracias por tu preferencia en Joyería Nice! 💍✨`;
+
+  const encoded = encodeURIComponent(msg);
+  const telLimpio = String(telefonoEnvioTicket.value || '').replace(/\D/g, '');
+
+  const url = telLimpio
+    ? `https://wa.me/${telLimpio.length === 10 ? '52' + telLimpio : telLimpio}?text=${encoded}`
+    : `https://wa.me/?text=${encoded}`;
+
+  window.open(url, '_blank');
+}
+
+function imprimirTicket() {
+  window.print();
 }
 
 // Manejo del Escáner QR con html5-qrcode

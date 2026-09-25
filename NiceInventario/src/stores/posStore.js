@@ -169,7 +169,7 @@ export const usePosStore = defineStore('pos', {
       }
 
       // 1. Guardar de forma atómica en Dexie (IndexedDB)
-      const resLocal = await db.guardarVentaOffline({
+      await db.guardarVentaOffline({
         IdVenta,
         Cliente_Id: this.clienteSeleccionado ? this.clienteSeleccionado.IdCliente : null,
         EmpresariaId: empresariaStore.empresariaActiva?.IdEmpresaria || 1,
@@ -191,14 +191,30 @@ export const usePosStore = defineStore('pos', {
         });
       }
 
+      // Preparar comprobante completo para el ticket y WhatsApp
+      const ventaFinal = {
+        success: true,
+        IdVenta,
+        Folio: IdVenta.substring(0, 8).toUpperCase(),
+        Fecha: new Date().toISOString(),
+        Cliente: this.clienteSeleccionado ? { ...this.clienteSeleccionado } : null,
+        TipoVenta: this.tipoVenta,
+        Estado: estadoVenta,
+        MetodoPago: this.metodoPago,
+        total: this.totalCobro,
+        abonoInicial: this.tipoVenta === 'APARTADO' ? Number(this.montoAbonoApartado || 0) : this.totalCobro,
+        saldoPendiente:
+          this.tipoVenta === 'APARTADO'
+            ? Math.max(0, this.totalCobro - Number(this.montoAbonoApartado || 0))
+            : 0,
+        items: this.carrito.map((i) => ({ ...i })),
+        empresaria: empresariaStore.empresariaActiva ? { ...empresariaStore.empresariaActiva } : null
+      };
+
       // 4. Limpiar estado para la siguiente venta
       this.limpiarCarrito();
 
-      return {
-        success: true,
-        IdVenta,
-        total: resLocal.total
-      };
+      return ventaFinal;
     }
   }
 });
