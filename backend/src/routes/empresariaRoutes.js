@@ -10,9 +10,8 @@ router.use(verificarToken);
 // Catálogo de roles
 router.get('/roles', EmpresariaController.getRoles);
 
-// Rutas de Empresarias / Distribuidoras Nice
-// Listar empresarias (restringido a administradores)
-router.get('/', soloAdmin, EmpresariaController.getEmpresarias);
+// Listar empresarias (soporta ?estado=Activa&rolId=...&search=...)
+router.get('/', EmpresariaController.getEmpresarias);
 
 // Obtener empresaria por ID
 router.get('/:id', EmpresariaController.getEmpresariaById);

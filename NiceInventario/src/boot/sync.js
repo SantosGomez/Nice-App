@@ -27,15 +27,28 @@ export default boot(async () => {
     // Actualizar estado inicial de pendientes
     await networkStore.updatePendingCount();
 
-    // Cargar lista de empresarias si estamos online
-    if (networkStore.isOnline) {
+    // Solo consultar API remota si hay una sesión activa con token
+    let hasAuthToken = false;
+    try {
+      const authRaw = localStorage.getItem('auth');
+      if (authRaw) {
+        const parsed = JSON.parse(authRaw);
+        hasAuthToken = Boolean(parsed && parsed.token);
+      }
+    } catch {
+      hasAuthToken = false;
+    }
+
+    if (networkStore.isOnline && hasAuthToken) {
       empresariaStore.cargarEmpresarias().catch(() => {});
 
       // Si la base de datos local no tiene productos aún, descargar catálogo inicial
       const count = await db.productos.count();
-      if (count === 0) {
+      if (count === 0 && empresariaStore.empresariaActiva?.IdEmpresaria) {
         console.log('📦 [Dexie] Base de datos local vacía. Descargando catálogo inicial...');
-        networkStore.syncNow(empresariaStore.empresariaActiva?.IdEmpresaria || 1).catch(() => {});
+        networkStore
+          .syncNow(empresariaStore.empresariaActiva.IdEmpresaria)
+          .catch(() => {});
       }
     }
   }

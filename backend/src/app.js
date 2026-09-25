@@ -24,6 +24,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Habilitar trust proxy para entornos como Railway / Vercel / Nginx
+app.set('trust proxy', 1);
+
 // Cabeceras de seguridad HTTP con Helmet (permitiendo recursos cruzados para imágenes)
 app.use(
   helmet({
@@ -31,19 +34,35 @@ app.use(
   })
 );
 
-// Configuración de CORS segura
-const allowedOrigins = process.env.CORS_ORIGIN
+// Configuración de CORS segura con soporte automático para Vercel y Railway
+const defaultOrigins = [
+  'http://localhost:9000',
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://127.0.0.1:9000',
+  'https://nice-app-psi.vercel.app'
+];
+
+const envOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-  : ['http://localhost:9000', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:9000'];
+  : [];
+
+const allowedOrigins = [...defaultOrigins, ...envOrigins];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir peticiones sin origen (apps móviles, scripts internos) o en desarrollo / whitelist
-      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      // Permitir peticiones sin origen (apps móviles, scripts internos), localhost, Vercel y Railway
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.railway.app') ||
+        process.env.NODE_ENV !== 'production'
+      ) {
         return callback(null, true);
       }
-      return callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+      return callback(null, false);
     },
     credentials: true
   })
@@ -52,9 +71,10 @@ app.use(
 // Rate limiter global para proteger la API contra saturación / DoS
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 1200, // hasta 1200 peticiones cada 15 min por IP
+  max: 1500, // hasta 1500 peticiones cada 15 min por IP
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: {
     success: false,
     message: 'Límite de peticiones alcanzado. Por favor intenta de nuevo en unos minutos.'
