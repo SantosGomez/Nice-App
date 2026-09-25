@@ -169,10 +169,10 @@
         <div
           v-for="prod in productosPaginadosGrid"
           :key="prod.id"
-          class="col-12 col-sm-6 col-md-4 col-lg-3"
+          class="col-6 col-sm-6 col-md-4 col-lg-3"
         >
           <q-card flat class="rounded-borders shadow-1 bg-white column full-height">
-            <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 140px">
+            <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 120px">
               <q-img
                 v-if="prod.ImgURL"
                 :src="formatImagenUrl(prod.ImgURL)"

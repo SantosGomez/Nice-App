@@ -235,6 +235,58 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <!-- Barra de Navegación Inferior para Móviles (Galaxy S23 Ultra y smartphones) -->
+    <q-footer elevated class="bg-white lt-md border-top shadow-up-3 text-grey-8">
+      <q-tabs
+        no-caps
+        dense
+        active-color="primary"
+        indicator-color="transparent"
+        class="text-grey-7"
+        align="justify"
+      >
+        <q-route-tab
+          to="/"
+          exact
+          icon="point_of_sale"
+          label="POS"
+          class="q-px-none"
+        />
+        <q-route-tab
+          to="/inventario"
+          icon="inventory_2"
+          label="Inventario"
+          class="q-px-none"
+        />
+        <q-route-tab
+          to="/clientes"
+          icon="people"
+          label="Clientes"
+          class="q-px-none"
+        />
+        <q-route-tab
+          to="/ventas"
+          icon="receipt_long"
+          label="Ventas"
+          class="q-px-none"
+        />
+        <q-route-tab
+          v-if="authStore.esAdmin"
+          to="/usuarios"
+          icon="manage_accounts"
+          label="Usuarios"
+          class="q-px-none"
+        />
+        <q-route-tab
+          v-else
+          to="/sync"
+          icon="cloud_sync"
+          label="Sync"
+          class="q-px-none"
+        />
+      </q-tabs>
+    </q-footer>
   </q-layout>
 </template>
 

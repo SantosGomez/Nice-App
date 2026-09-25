@@ -163,7 +163,7 @@
       </div>
 
       <!-- Columna Derecha: Ticket / Carrito de Venta POS -->
-      <div class="col-12 col-md-5 col-lg-4">
+      <div id="ticket-pos" class="col-12 col-md-5 col-lg-4">
         <q-card flat class="rounded-borders shadow-2 bg-white column" style="min-height: 520px;">
           <!-- Cabecera del Ticket -->
           <q-card-section class="gradient-navy text-white q-py-sm">
@@ -537,7 +537,38 @@
           </div>
         </q-card-actions>
       </q-card>
-    </q-dialog>
+    <!-- Barra Flotante de Carrito Móvil (Acceso rápido con pulgar) -->
+    <div
+      v-if="posStore.carrito.length > 0"
+      class="lt-md fixed-bottom q-pa-sm z-top"
+      style="bottom: 56px;"
+    >
+      <q-card class="gradient-navy text-white shadow-6 rounded-borders-lg q-pa-sm gold-border">
+        <div class="row items-center justify-between no-wrap">
+          <div class="row items-center q-gutter-x-xs no-wrap">
+            <q-avatar size="32px" color="secondary" text-color="primary" icon="shopping_bag" class="shadow-1" />
+            <div>
+              <div class="text-caption text-weight-bold text-gold">
+                {{ posStore.totalArticulos }} pzas &bull; ${{ formatPrecio(posStore.totalCobro) }}
+              </div>
+              <div class="text-caption text-grey-4 ellipsis" style="font-size: 0.68rem; max-width: 140px;">
+                {{ posStore.clienteSeleccionado ? posStore.clienteSeleccionado.Nombre : 'Venta General' }}
+              </div>
+            </div>
+          </div>
+
+          <q-btn
+            unelevated
+            dense
+            rounded
+            class="gradient-gold text-primary text-weight-bolder q-px-md text-caption shadow-2"
+            label="VER TICKET"
+            icon-right="arrow_downward"
+            @click="irAlTicketMobile"
+          />
+        </div>
+      </q-card>
+    </div>
   </q-page>
 </template>
 
@@ -823,6 +854,13 @@ function compartirTicketWhatsApp() {
 
 function imprimirTicket() {
   window.print();
+}
+
+function irAlTicketMobile() {
+  const el = document.getElementById('ticket-pos');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 // Manejo del Escáner QR con html5-qrcode
