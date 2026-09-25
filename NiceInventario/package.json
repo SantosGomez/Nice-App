@@ -1,8 +1,8 @@
 {
   "name": "niceinventario",
-  "version": "0.0.1",
+  "version": "2.3.2",
   "description": "Inventario para la joyeria de la preciosa",
-  "productName": "Nice",
+  "productName": "Nice Inventario",
   "author": "SantosGomez",
   "type": "module",
   "private": true,
