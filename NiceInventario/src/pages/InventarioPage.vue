@@ -199,10 +199,14 @@
         <div
           v-for="prod in productosPaginadosGrid"
           :key="prod.id"
-          class="col-6 col-sm-6 col-md-4 col-lg-3"
+          class="col-12 col-sm-6 col-md-4 col-lg-3"
         >
-          <q-card flat class="rounded-borders shadow-1 bg-white column full-height">
-            <div class="relative-position bg-grey-2 text-center q-pa-sm" style="height: 120px">
+          <q-card flat class="rounded-borders shadow-1 bg-white column full-height overflow-hidden">
+            <div
+              class="relative-position bg-grey-2 text-center q-pa-sm cursor-pointer overflow-hidden"
+              style="height: 160px"
+              @click="abrirVisorImagen(prod)"
+            >
               <q-img
                 v-if="prod.ImgURL"
                 :src="formatImagenUrl(prod.ImgURL)"
@@ -217,10 +221,25 @@
               <!-- Badge de Stock -->
               <q-badge
                 :color="prod.Stock > 0 ? 'positive' : 'negative'"
-                class="absolute-top-right q-ma-xs text-weight-bold"
+                class="absolute-top-right q-ma-xs text-weight-bold shadow-1"
               >
                 {{ prod.Stock > 0 ? `${prod.Stock} en stock` : 'Agotado' }}
               </q-badge>
+
+              <!-- Botón Lupa para ver foto en grande -->
+              <q-btn
+                v-if="prod.ImgURL"
+                round
+                dense
+                flat
+                size="sm"
+                color="white"
+                icon="zoom_in"
+                class="absolute-bottom-right q-ma-xs bg-dark-dimmed shadow-1"
+                @click.stop="abrirVisorImagen(prod)"
+              >
+                <q-tooltip>Ampliar foto</q-tooltip>
+              </q-btn>
             </div>
 
             <q-card-section class="q-pa-sm col column justify-between">
@@ -281,7 +300,6 @@
                     dense
                     size="sm"
                     color="primary"
-                    label="Editar"
                     icon="edit"
                     class="col text-weight-bold bg-blue-1"
                     @click="abrirModalEditar(prod)"
@@ -679,51 +697,61 @@
               />
             </div>
             <!-- Sección de Imagen de la Joya (Cámara / Galería / URL) -->
-            <div class = "col-sm-12">
+            <div class="col-12">
               <label class="text-caption text-weight-bold text-grey-8">Imagen de la Joya:</label>
 
-              <!-- Vista previa de la foto -->
-              <div v-if="nuevoProducto.ImgURL" class="q-mb-sm text-center relative-position">
+              <!-- Vista previa de la foto con opción de zoom y eliminar -->
+              <div v-if="nuevoProducto.ImgURL" class="q-my-xs text-center relative-position bg-grey-2 rounded-borders overflow-hidden" style="border: 2px dashed #cbd5e1; padding: 6px;">
                 <q-img
                   :src="formatImagenUrl(nuevoProducto.ImgURL)"
                   spinner-color="primary"
-                  style="height: 140px; max-width: 100%; border-radius: 12px"
+                  style="height: 160px; max-width: 100%; border-radius: 8px; cursor: pointer;"
                   fit="contain"
-                  class="bg-grey-2 shadow-1"
-                />
+                  class="bg-white shadow-1"
+                  @click="abrirVisorImagen({ Nombre: nuevoProducto.Nombre || 'Vista Previa', ImgURL: nuevoProducto.ImgURL, Precio: nuevoProducto.Precio, id: nuevoProducto.id })"
+                >
+                  <div class="absolute-bottom text-caption text-white bg-dark-dimmed text-center q-pa-xs">
+                    <q-icon name="zoom_in" size="14px" class="q-mr-xs" />Toca para ampliar foto
+                  </div>
+                </q-img>
                 <q-btn
                   round
                   dense
                   color="negative"
                   icon="close"
                   size="xs"
-                  class="absolute-top-right q-ma-xs"
+                  class="absolute-top-right q-ma-sm shadow-2"
                   @click="nuevoProducto.ImgURL = ''"
                 >
                   <q-tooltip>Quitar foto</q-tooltip>
                 </q-btn>
               </div>
 
-              <!-- Botones de Acción -->
-              <div class="row q-gutter-xs q-mb-xs">
-                <q-btn
-                  outline
-                  dense
-                  color="primary"
-                  icon="photo_camera"
-                  label="Cámara"
-                  class="col text-weight-bold"
-                  @click="abrirCamaraProducto"
-                />
-                <q-btn
-                  outline
-                  dense
-                  color="secondary"
-                  icon="photo_library"
-                  label="Galería"
-                  class="col text-weight-bold"
-                  @click="abrirGaleriaProducto"
-                />
+              <!-- Botones de Acción para Tomar o Subir Foto a pantalla completa -->
+              <div class="row q-col-gutter-xs q-mt-xs full-width">
+                <div class="col-6">
+                  <q-btn
+                    unelevated
+                    dense
+                    color="primary"
+                    icon="photo_camera"
+                    label="Tomar Foto"
+                    class="full-width text-weight-bold q-py-xs"
+                    @click="abrirCamaraProducto"
+                  />
+                </div>
+                <div class="col-6">
+                  <q-btn
+                    unelevated
+                    dense
+                    color="secondary"
+                    text-color="primary"
+                    icon="photo_library"
+                    label="Galería"
+                    class="full-width text-weight-bold q-py-xs"
+                    @click="abrirGaleriaProducto"
+                  />
+                </div>
               </div>
 
               <!-- Input HTML oculto SOLO para GALERÍA -->
@@ -741,8 +769,10 @@
                 dense
                 outlined
                 placeholder="O pega la URL de la imagen (https://...)"
-                class="q-mt-xs"
-              />
+                class="q-mt-sm"
+              >
+                <template #prepend><q-icon name="link" color="grey-6" /></template>
+              </q-input>
             </div>
           </div>
 
@@ -916,6 +946,56 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo: Visualizador de Imagen en Detalle (Lightbox Zoom) -->
+    <q-dialog v-model="mostrarVisorFoto">
+      <q-card style="width: 100%; max-width: 520px; border-radius: 20px; background: #0f172a;" class="text-white overflow-hidden shadow-6">
+        <q-card-section class="row items-center justify-between q-py-sm bg-black">
+          <div class="row items-center q-gutter-x-xs no-wrap" style="min-width: 0;">
+            <q-icon name="diamond" color="gold" size="20px" class="shrink-0" />
+            <div class="text-subtitle1 text-weight-bold text-gold ellipsis" style="min-width: 0;">
+              {{ fotoSeleccionada?.Nombre || 'Detalle de la Joya' }}
+            </div>
+          </div>
+          <q-btn icon="close" flat round dense color="white" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pa-none flex flex-center bg-black" style="min-height: 320px; max-height: 65vh;">
+          <q-img
+            v-if="fotoSeleccionada?.ImgURL"
+            :src="formatImagenUrl(fotoSeleccionada.ImgURL)"
+            fit="contain"
+            style="max-height: 60vh; width: 100%;"
+            spinner-color="gold"
+          />
+          <div v-else class="column items-center justify-center q-pa-xl text-grey-5">
+            <q-icon name="image_not_supported" size="64px" />
+            <div class="text-caption q-mt-sm">Sin imagen registrada</div>
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-pa-md bg-grey-10 text-white">
+          <div class="row items-center justify-between">
+            <div>
+              <div class="text-caption text-grey-4">
+                Código: <span class="text-white text-weight-bold">{{ fotoSeleccionada?.id || '—' }}</span>
+                <span v-if="fotoSeleccionada?.Categoria"> • {{ fotoSeleccionada.Categoria }}</span>
+              </div>
+              <div class="text-h6 text-weight-bolder text-gold">
+                ${{ formatPrecio(fotoSeleccionada?.Precio) }}
+              </div>
+            </div>
+            <q-badge
+              v-if="fotoSeleccionada?.Stock !== undefined"
+              :color="Number(fotoSeleccionada?.Stock) > 0 ? 'positive' : 'negative'"
+              class="text-subtitle2 text-weight-bold q-pa-xs"
+            >
+              {{ Number(fotoSeleccionada?.Stock) > 0 ? `${fotoSeleccionada.Stock} en stock` : 'Agotado' }}
+            </q-badge>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -962,6 +1042,10 @@ const kardexProductoSeleccionado = ref(null)
 const filtroTipoMovimiento = ref('TODOS')
 const cargandoKardex = ref(false)
 const movimientosKardex = ref([])
+
+// Visor de Imagen en Grande
+const mostrarVisorFoto = ref(false)
+const fotoSeleccionada = ref(null)
 
 const mostrarModalCamara = ref(false)
 const videoFotoRef = ref(null)
@@ -1844,6 +1928,11 @@ async function guardarNuevoProducto() {
   }
 }
 
+function abrirVisorImagen(prod) {
+  fotoSeleccionada.value = prod
+  mostrarVisorFoto.value = true
+}
+
 function abrirKardexGeneral() {
   kardexProductoSeleccionado.value = null
   filtroTipoMovimiento.value = 'TODOS'
@@ -1992,5 +2081,10 @@ onBeforeUnmount(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.bg-dark-dimmed {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
 }
 </style>
