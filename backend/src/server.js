@@ -1,5 +1,6 @@
 import app from './app.js';
 import { testConnection } from './config/db.js';
+import { initDatabase } from './config/initDb.js';
 
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0'; // 👈 Necesario para que Railway exponga la API a internet
@@ -9,7 +10,9 @@ async function startServer() {
 
   // Verificar conexión a la base de datos antes de escuchar peticiones
   const isDbConnected = await testConnection();
-  if (!isDbConnected) {
+  if (isDbConnected) {
+    await initDatabase();
+  } else {
     console.warn('⚠️  [Aviso] El servidor iniciará, pero MySQL no respondió. Revisa tus credenciales en .env o si MySQL/MariaDB está corriendo.');
   }
 

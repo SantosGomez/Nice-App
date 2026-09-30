@@ -50,6 +50,15 @@
               class="text-weight-bold"
               @click="abrirModalNuevoManual"
             />
+            <q-btn
+              outline
+              rounded
+              color="primary"
+              icon="history"
+              label="Kardex"
+              class="text-weight-bold"
+              @click="abrirKardexGeneral"
+            />
             <!-- Botón de Exportar Reportes -->
             <q-btn-dropdown
               flat
@@ -103,6 +112,27 @@
     <!-- Barra de Filtros y Búsqueda -->
     <q-card flat class="rounded-borders shadow-1 q-mb-md bg-white">
       <q-card-section class="q-pb-sm">
+        <!-- Selector de Alcance de Inventario (Mi Stock / Agotados / Catálogo Global) -->
+        <div class="row q-gutter-xs q-mb-sm items-center overflow-auto no-wrap">
+          <q-btn-toggle
+            v-model="scopeInventario"
+            dense
+            rounded
+            no-caps
+            unelevated
+            toggle-color="primary"
+            color="grey-2"
+            text-color="grey-9"
+            class="text-weight-bold"
+            :options="[
+              { label: 'Mi Stock Disponible', value: 'mi_stock', icon: 'diamond' },
+              { label: 'Agotados (0)', value: 'agotados', icon: 'inventory_2' },
+              { label: 'Catálogo General Nice', value: 'catalogo_global', icon: 'public' }
+            ]"
+            @update:model-value="cargarInventario"
+          />
+        </div>
+
         <div class="row q-col-gutter-sm items-center">
           <div class="col-12 col-sm-6 col-md-8">
             <q-input
@@ -221,7 +251,7 @@
                   </div>
                 </div>
 
-                <!-- Botones de Acción: Entrada de Stock y Edición -->
+                <!-- Botones de Acción: Entrada de Stock, Kardex y Edición -->
                 <div class="row q-gutter-xs q-mt-sm">
                   <q-btn
                     outline
@@ -239,10 +269,21 @@
                     flat
                     dense
                     size="sm"
+                    color="secondary"
+                    icon="history"
+                    class="bg-amber-1"
+                    @click="abrirKardexProducto(prod)"
+                  >
+                    <q-tooltip>Historial de Movimientos / Kardex</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    size="sm"
                     color="primary"
                     label="Editar"
                     icon="edit"
-                    class="col text-weight-bold bg-amber-1"
+                    class="col text-weight-bold bg-blue-1"
                     @click="abrirModalEditar(prod)"
                   >
                     <q-tooltip>Editar datos de la joya</q-tooltip>
@@ -312,6 +353,18 @@
 
         <template #body-cell-Acciones="props">
           <q-td :props="props" class="text-right">
+            <q-btn
+              round
+              dense
+              flat
+              color="secondary"
+              icon="history"
+              size="sm"
+              class="q-mr-xs"
+              @click="abrirKardexProducto(props.row)"
+            >
+              <q-tooltip>Ver Kardex / Historial de Movimientos</q-tooltip>
+            </q-btn>
             <q-btn
               round
               dense
@@ -740,6 +793,129 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo: Kardex / Historial de Movimientos de Stock -->
+    <q-dialog v-model="mostrarModalKardex">
+      <q-card style="width: 100%; max-width: 800px; border-radius: 16px" class="overflow-hidden">
+        <q-card-section class="gradient-navy text-white row items-center justify-between q-py-sm">
+          <div class="row items-center q-gutter-x-sm">
+            <q-icon name="history" size="24px" color="gold" />
+            <div>
+              <div class="text-subtitle1 text-weight-bold text-gold brand-font">
+                {{ kardexProductoSeleccionado ? `Kardex: ${kardexProductoSeleccionado.Nombre}` : 'Historial General de Movimientos (Kardex)' }}
+              </div>
+              <div v-if="kardexProductoSeleccionado" class="text-caption text-grey-4">
+                Código: <span class="text-weight-bold text-white">{{ kardexProductoSeleccionado.id }}</span> | Stock Actual: <span class="text-weight-bold text-amber-3">{{ kardexProductoSeleccionado.Stock }} piezas</span>
+              </div>
+            </div>
+          </div>
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <!-- Filtro por Tipo de Movimiento -->
+        <q-card-section class="q-pb-none bg-grey-1">
+          <div class="row q-col-gutter-sm items-center justify-between">
+            <div class="col-12 col-sm-auto">
+              <q-tabs
+                v-model="filtroTipoMovimiento"
+                dense
+                no-caps
+                inline-label
+                active-color="primary"
+                indicator-color="primary"
+                class="text-grey-7"
+                @update:model-value="filtrarMovimientosKardex"
+              >
+                <q-tab name="TODOS" label="Todos" icon="list" />
+                <q-tab name="IN_QR" label="Entrada QR" icon="qr_code" />
+                <q-tab name="MANUAL_IN" label="Entrada Manual" icon="add_box" />
+                <q-tab name="SALE_OUT" label="Ventas" icon="point_of_sale" />
+                <q-tab name="ADJUSTMENT" label="Ajustes" icon="tune" />
+              </q-tabs>
+            </div>
+            <div class="col-12 col-sm-auto text-right">
+              <q-btn
+                flat
+                dense
+                round
+                icon="refresh"
+                color="primary"
+                :loading="cargandoKardex"
+                @click="cargarMovimientosKardex"
+              >
+                <q-tooltip>Recargar movimientos</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+        </q-card-section>
+
+        <!-- Lista / Tabla de Movimientos -->
+        <q-card-section class="q-pa-md" style="max-height: 60vh; overflow-y: auto;">
+          <div v-if="cargandoKardex" class="q-pa-lg text-center">
+            <q-spinner-dots color="primary" size="40px" />
+            <div class="text-caption text-grey-6 q-mt-sm">Cargando trazabilidad de inventario...</div>
+          </div>
+
+          <div v-else-if="movimientosKardex.length === 0" class="text-center q-pa-xl text-grey-6">
+            <q-icon name="history_toggle_off" size="56px" color="grey-4" />
+            <div class="text-subtitle1 q-mt-sm">No hay movimientos registrados</div>
+            <div class="text-caption">Las entradas por QR, ventas y ajustes quedarán registradas aquí.</div>
+          </div>
+
+          <q-list v-else separator class="rounded-borders bg-white shadow-1">
+            <q-item v-for="mov in movimientosKardex" :key="mov.IdInventario || mov.id" class="q-py-sm">
+              <!-- Icono según tipo -->
+              <q-item-section avatar>
+                <q-avatar
+                  :color="getTipoMovimientoColor(mov.tipo)"
+                  text-color="white"
+                  :icon="getTipoMovimientoIcon(mov.tipo)"
+                  size="38px"
+                />
+              </q-item-section>
+
+              <!-- Detalles del movimiento -->
+              <q-item-section>
+                <div class="row items-center q-gutter-x-sm">
+                  <span class="text-weight-bold text-dark">{{ getTipoMovimientoTexto(mov.tipo) }}</span>
+                  <q-badge
+                    :color="Number(mov.Quantity) > 0 ? 'positive' : 'negative'"
+                    class="text-weight-bolder q-px-xs"
+                  >
+                    {{ Number(mov.Quantity) > 0 ? `+${mov.Quantity}` : mov.Quantity }} pzas
+                  </q-badge>
+                </div>
+
+                <div class="text-caption text-grey-7 q-mt-xs">
+                  <span v-if="!kardexProductoSeleccionado && mov.NombreProducto" class="text-weight-medium text-primary">
+                    {{ mov.NombreProducto }} ({{ mov.ProductoId }}) •
+                  </span>
+                  <span>{{ formatFechaHora(mov.created_at) }}</span>
+                </div>
+
+                <div v-if="mov.Notas" class="text-caption text-grey-8 bg-grey-1 q-pa-xs rounded-borders q-mt-xs">
+                  <q-icon name="notes" size="14px" class="q-mr-xs text-grey-6" />
+                  {{ mov.Notas }}
+                </div>
+              </q-item-section>
+
+              <!-- Timestamp relativo o folio -->
+              <q-item-section side top>
+                <div class="text-caption text-grey-5 font-mono">
+                  #{{ mov.IdInventario || mov.id || '' }}
+                </div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-actions align="right" class="q-pa-sm bg-grey-1">
+          <q-btn flat rounded label="Cerrar" color="primary" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -774,12 +950,18 @@ const categorias = ref([
   'Accesorios',
 ])
 const vistaModo = ref('grid')
+const scopeInventario = ref('mi_stock')
 
 // Modales
 const mostrarModalEntrada = ref(false)
 const mostrarModalNuevo = ref(false)
 const mostrarScanner = ref(false)
 const editandoProducto = ref(false)
+const mostrarModalKardex = ref(false)
+const kardexProductoSeleccionado = ref(null)
+const filtroTipoMovimiento = ref('TODOS')
+const cargandoKardex = ref(false)
+const movimientosKardex = ref([])
 
 const mostrarModalCamara = ref(false)
 const videoFotoRef = ref(null)
@@ -829,7 +1011,7 @@ async function cargarInventario() {
       empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2
     if (networkStore.isOnline) {
       try {
-        const resp = await api.get(`/inventario/stock/${empId}`)
+        const resp = await api.get(`/inventario/stock/${empId}?scope=${scopeInventario.value}`)
         if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
           const rawData = resp.data.data
           const prods = rawData.map((p) => ({
@@ -863,7 +1045,7 @@ async function cargarInventario() {
       }
     }
 
-    productos.value = await db.obtenerCatalogoConStock(empId)
+    productos.value = await db.obtenerCatalogoConStock(empId, { scope: scopeInventario.value })
   } catch (err) {
     console.error('Error cargando inventario:', err)
   }
@@ -1659,6 +1841,132 @@ async function guardarNuevoProducto() {
       type: 'negative',
       message: 'Error al guardar producto: ' + (err.response?.data?.message || err.message),
     })
+  }
+}
+
+function abrirKardexGeneral() {
+  kardexProductoSeleccionado.value = null
+  filtroTipoMovimiento.value = 'TODOS'
+  mostrarModalKardex.value = true
+  cargarMovimientosKardex()
+}
+
+function abrirKardexProducto(prod) {
+  kardexProductoSeleccionado.value = prod
+  filtroTipoMovimiento.value = 'TODOS'
+  mostrarModalKardex.value = true
+  cargarMovimientosKardex()
+}
+
+async function filtrarMovimientosKardex() {
+  await cargarMovimientosKardex()
+}
+
+async function cargarMovimientosKardex() {
+  cargandoKardex.value = true
+  try {
+    const empId = Number(
+      empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2
+    )
+    const prodId = kardexProductoSeleccionado.value?.id || null
+    const tipo = filtroTipoMovimiento.value !== 'TODOS' ? filtroTipoMovimiento.value : null
+
+    if (networkStore.isOnline) {
+      try {
+        let url = `/inventario/movimientos/${empId}?limit=100`
+        if (prodId) url += `&productoId=${encodeURIComponent(prodId)}`
+        if (tipo) url += `&tipo=${encodeURIComponent(tipo)}`
+
+        const resp = await api.get(url)
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          movimientosKardex.value = resp.data.data
+          return
+        }
+      } catch (apiErr) {
+        console.warn('Fallo al obtener Kardex online, cargando desde Dexie:', apiErr.message)
+      }
+    }
+
+    // Fallback Dexie offline
+    let query = db.inventory_movements.where('EmpresariaId').equals(empId)
+    let records = await query.toArray()
+    if (prodId) {
+      records = records.filter((m) => String(m.ProductoId) === String(prodId))
+    }
+    if (tipo) {
+      records = records.filter((m) => m.tipo === tipo)
+    }
+    records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    movimientosKardex.value = records
+  } catch (err) {
+    console.error('Error cargando movimientos Kardex:', err)
+    $q.notify({
+      type: 'negative',
+      message: 'Error al consultar historial de movimientos'
+    })
+  } finally {
+    cargandoKardex.value = false
+  }
+}
+
+function getTipoMovimientoColor(tipo) {
+  switch (tipo) {
+    case 'IN_QR':
+      return 'positive'
+    case 'MANUAL_IN':
+      return 'teal'
+    case 'SALE_OUT':
+      return 'deep-orange'
+    case 'ADJUSTMENT':
+      return 'amber-9'
+    default:
+      return 'grey-7'
+  }
+}
+
+function getTipoMovimientoIcon(tipo) {
+  switch (tipo) {
+    case 'IN_QR':
+      return 'qr_code_scanner'
+    case 'MANUAL_IN':
+      return 'add_circle'
+    case 'SALE_OUT':
+      return 'point_of_sale'
+    case 'ADJUSTMENT':
+      return 'tune'
+    default:
+      return 'history'
+  }
+}
+
+function getTipoMovimientoTexto(tipo) {
+  switch (tipo) {
+    case 'IN_QR':
+      return 'Entrada QR'
+    case 'MANUAL_IN':
+      return 'Entrada Manual'
+    case 'SALE_OUT':
+      return 'Venta / Salida'
+    case 'ADJUSTMENT':
+      return 'Ajuste de Stock'
+    default:
+      return tipo || 'Movimiento'
+  }
+}
+
+function formatFechaHora(dateStr) {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return dateStr
   }
 }
 

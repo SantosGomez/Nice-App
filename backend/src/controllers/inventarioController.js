@@ -11,7 +11,7 @@ export const InventarioController = {
   async getStock(req, res) {
     try {
       const { empresariaId } = req.params;
-      const { categoria, search } = req.query;
+      const { categoria, search, scope, soloConStock } = req.query;
 
       if (!empresariaId) {
         return res.status(400).json({
@@ -22,7 +22,9 @@ export const InventarioController = {
 
       const stock = await InventarioModel.getStockByEmpresaria(Number(empresariaId), {
         categoria,
-        search
+        search,
+        scope,
+        soloConStock
       });
 
       return res.status(200).json({
@@ -97,16 +99,19 @@ export const InventarioController = {
 
   /**
    * GET /api/inventario/movimientos/:empresariaId
-   * Obtiene el histórico de movimientos de inventario de una empresaria.
+   * Obtiene el histórico de movimientos de inventario (Kardex) de una empresaria.
+   * Soporta ?productoId=...&tipo=...&limit=...&offset=...
    */
   async getMovimientos(req, res) {
     try {
       const { empresariaId } = req.params;
-      const { limit = 50, offset = 0 } = req.query;
+      const { productoId, tipo, limit = 50, offset = 0 } = req.query;
 
       const movimientos = await InventarioModel.getMovimientos(Number(empresariaId), {
-        limit,
-        offset
+        productoId,
+        tipo,
+        limit: Number(limit) || 50,
+        offset: Number(offset) || 0
       });
 
       return res.status(200).json({

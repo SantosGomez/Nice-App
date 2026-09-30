@@ -5,31 +5,79 @@ import pool from '../config/db.js';
  */
 export const InventarioModel = {
   /**
-   * Obtiene el inventario completo y stock actual de una empresaria.
+   * Obtiene el inventario y stock de una empresaria.
+   * Por defecto (scope: 'mi_stock') utiliza INNER JOIN para consultar únicamente las piezas
+   * que la empresaria tiene en stock activo (Stock > 0), garantizando escalabilidad para miles de usuarios.
+   * 
+   * @param {number} empresariaId
+   * @param {Object} options
+   * @param {string} [options.scope='mi_stock'] - 'mi_stock' (Stock > 0), 'agotados' (Stock = 0), 'mi_historial' (todo su stock), 'catalogo_global' (todas las joyas)
+   * @param {string} [options.categoria]
+   * @param {string} [options.search]
+   * @param {boolean} [options.soloConStock]
    */
-  async getStockByEmpresaria(empresariaId, { categoria, search } = {}) {
-    let sql = `
-      SELECT 
-        p.id,
-        p.id AS ProductoId,
-        p.sku,
-        p.CodigoQr,
-        p.Nombre,
-        p.Categoria,
-        p.Catalogo,
-        p.Precio,
-        p.PrecioCosto,
-        p.ImgURL,
-        COALESCE(se.Stock, 0) AS Stock,
-        se.updated_at AS UltimaActualizacion
-      FROM productos p
-      LEFT JOIN stock_empresarias se 
-        ON p.id = se.ProductoId AND se.EmpresariaId = ?
-    `;
-    const params = [empresariaId];
+  async getStockByEmpresaria(empresariaId, { categoria, search, scope = 'mi_stock', soloConStock } = {}) {
+    const empId = Number(empresariaId);
+    let effectiveScope = scope;
+    if (soloConStock === true || soloConStock === 'true') effectiveScope = 'mi_stock';
+    if (soloConStock === false || soloConStock === 'false') effectiveScope = 'catalogo_global';
+
+    let sql = '';
+    const params = [];
     const conditions = [];
 
-    if (categoria) {
+    if (effectiveScope === 'catalogo_global' || effectiveScope === 'todos') {
+      // Búsqueda en catálogo maestro completo (LEFT JOIN)
+      sql = `
+        SELECT 
+          p.id,
+          p.id AS ProductoId,
+          p.sku,
+          p.CodigoQr,
+          p.Nombre,
+          p.Categoria,
+          p.Catalogo,
+          p.Precio,
+          p.PrecioCosto,
+          p.ImgURL,
+          COALESCE(se.Stock, 0) AS Stock,
+          se.updated_at AS UltimaActualizacion
+        FROM productos p
+        LEFT JOIN stock_empresarias se 
+          ON p.id = se.ProductoId AND se.EmpresariaId = ?
+      `;
+      params.push(empId);
+    } else {
+      // Consultas optimizadas por índice (INNER JOIN) sobre stock_empresarias
+      sql = `
+        SELECT 
+          p.id,
+          p.id AS ProductoId,
+          p.sku,
+          p.CodigoQr,
+          p.Nombre,
+          p.Categoria,
+          p.Catalogo,
+          p.Precio,
+          p.PrecioCosto,
+          p.ImgURL,
+          se.Stock,
+          se.updated_at AS UltimaActualizacion
+        FROM stock_empresarias se
+        INNER JOIN productos p 
+          ON se.ProductoId = p.id
+      `;
+      conditions.push('se.EmpresariaId = ?');
+      params.push(empId);
+
+      if (effectiveScope === 'mi_stock') {
+        conditions.push('se.Stock > 0');
+      } else if (effectiveScope === 'agotados') {
+        conditions.push('se.Stock = 0');
+      }
+    }
+
+    if (categoria && categoria !== 'Todos') {
       conditions.push('p.Categoria = ?');
       params.push(categoria);
     }
@@ -101,10 +149,11 @@ export const InventarioModel = {
   },
 
   /**
-   * Obtiene el historial de movimientos de inventario de una empresaria.
+   * Obtiene el historial de movimientos de inventario (Kardex) de una empresaria.
+   * Permite filtrar por joya específica (ProductoId) y por tipo de movimiento.
    */
-  async getMovimientos(empresariaId, { limit = 50, offset = 0 } = {}) {
-    const sql = `
+  async getMovimientos(empresariaId, { productoId, tipo, limit = 50, offset = 0 } = {}) {
+    let sql = `
       SELECT 
         im.IdInventario,
         im.ProductoId,
@@ -116,16 +165,25 @@ export const InventarioModel = {
         im.Notas,
         im.created_at
       FROM inventory_movements im
-      INNER JOIN productos p ON im.ProductoId = p.id
+      LEFT JOIN productos p ON im.ProductoId = p.id
       WHERE im.EmpresariaId = ?
-      ORDER BY im.created_at DESC
-      LIMIT ? OFFSET ?
     `;
-    const [rows] = await pool.query(sql, [
-      empresariaId,
-      Number(limit),
-      Number(offset)
-    ]);
+    const params = [empresariaId];
+
+    if (productoId) {
+      sql += ' AND im.ProductoId = ?';
+      params.push(String(productoId).trim());
+    }
+
+    if (tipo) {
+      sql += ' AND im.tipo = ?';
+      params.push(String(tipo).trim());
+    }
+
+    sql += ' ORDER BY im.created_at DESC LIMIT ? OFFSET ?';
+    params.push(Number(limit), Number(offset));
+
+    const [rows] = await pool.query(sql, params);
     return rows;
   }
 };

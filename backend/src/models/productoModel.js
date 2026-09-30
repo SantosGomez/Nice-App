@@ -12,7 +12,7 @@ export const ProductoModel = {
    * @param {string} [options.search] - Texto de búsqueda por SKU, Nombre o Código QR
    * @param {string} [options.categoria] - Categoría específica
    */
-  async getAll({ empresariaId, search, categoria } = {}) {
+  async getAll({ empresariaId, search, categoria, soloConStock } = {}) {
     let sql = `
       SELECT 
         p.id,
@@ -28,21 +28,31 @@ export const ProductoModel = {
     `;
 
     const params = [];
+    const conditions = [];
 
     if (empresariaId) {
-      sql += `, COALESCE(se.Stock, 0) AS Stock
-        FROM productos p
-        LEFT JOIN stock_empresarias se 
-          ON p.id = se.ProductoId AND se.EmpresariaId = ?
-      `;
-      params.push(empresariaId);
+      if (soloConStock === true || soloConStock === 'true') {
+        sql += `, se.Stock
+          FROM stock_empresarias se
+          INNER JOIN productos p 
+            ON se.ProductoId = p.id
+        `;
+        conditions.push('se.EmpresariaId = ?');
+        conditions.push('se.Stock > 0');
+        params.push(Number(empresariaId));
+      } else {
+        sql += `, COALESCE(se.Stock, 0) AS Stock
+          FROM productos p
+          LEFT JOIN stock_empresarias se 
+            ON p.id = se.ProductoId AND se.EmpresariaId = ?
+        `;
+        params.push(Number(empresariaId));
+      }
     } else {
       sql += `
         FROM productos p
       `;
     }
-
-    const conditions = [];
 
     if (search) {
       conditions.push(`(p.Nombre LIKE ? OR p.sku LIKE ? OR p.CodigoQr LIKE ?)`);
@@ -50,7 +60,7 @@ export const ProductoModel = {
       params.push(searchWildcard, searchWildcard, searchWildcard);
     }
 
-    if (categoria) {
+    if (categoria && categoria !== 'Todos') {
       conditions.push(`p.Categoria = ?`);
       params.push(categoria);
     }

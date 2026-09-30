@@ -144,9 +144,14 @@ db.guardarVentaOffline = async function ({
 
 /**
  * Obtiene los productos combinados con su stock local para la empresaria actual sin duplicaciones.
+ * Por defecto (scope: 'mi_stock') devuelve solo las joyas que tienen Stock > 0 para aislar entre empresarias.
  */
-db.obtenerCatalogoConStock = async function (empresariaId) {
+db.obtenerCatalogoConStock = async function (empresariaId, { scope = 'mi_stock', soloConStock } = {}) {
   const empId = Number(empresariaId || 1);
+  let effectiveScope = scope;
+  if (soloConStock === true) effectiveScope = 'mi_stock';
+  if (soloConStock === false) effectiveScope = 'catalogo_global';
+
   const [productos, stockList] = await Promise.all([
     db.productos.toArray(),
     db.stock_empresarias.where('EmpresariaId').equals(empId).toArray()
@@ -163,12 +168,25 @@ db.obtenerCatalogoConStock = async function (empresariaId) {
   productos.forEach((prod) => {
     if (prod) {
       const prodId = String(prod.id || prod.ProductoId || prod.sku || '').trim();
+      const currentStock = stockMap.get(prodId) || 0;
+      const tieneRegistroStock = stockMap.has(prodId);
+
+      if (effectiveScope === 'mi_stock' && currentStock <= 0) {
+        return;
+      }
+      if (effectiveScope === 'agotados' && (!tieneRegistroStock || currentStock > 0)) {
+        return;
+      }
+      if (effectiveScope === 'mi_historial' && !tieneRegistroStock) {
+        return;
+      }
+
       if (prodId && !uniqueMap.has(prodId)) {
         uniqueMap.set(prodId, {
           ...prod,
           id: prodId,
           ProductoId: prodId,
-          Stock: stockMap.get(prodId) || 0
+          Stock: currentStock
         });
       }
     }

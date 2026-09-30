@@ -39,11 +39,12 @@ function guardarFotoEnCarpeta(base64String) {
 export const ProductoController = {
   async getProductos(req, res) {
     try {
-      const { empresariaId, search, categoria } = req.query;
+      const { empresariaId, search, categoria, soloConStock } = req.query;
       const productos = await ProductoModel.getAll({
         empresariaId: empresariaId ? Number(empresariaId) : null,
         search,
-        categoria
+        categoria,
+        soloConStock
       });
 
       return res.status(200).json({
