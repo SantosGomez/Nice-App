@@ -679,7 +679,7 @@
               />
             </div>
             <!-- Sección de Imagen de la Joya (Cámara / Galería / URL) -->
-            <div class = "col-sm-12 col-sm-6">
+            <div class = "col-sm-12">
               <label class="text-caption text-weight-bold text-grey-8">Imagen de la Joya:</label>
 
               <!-- Vista previa de la foto -->

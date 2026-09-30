@@ -163,8 +163,8 @@
       </div>
 
       <!-- Columna Derecha: Ticket / Carrito de Venta POS -->
-      <div id="ticket-pos" class="col-12 col-md-5 col-lg-4">
-        <q-card flat class="rounded-borders shadow-2 bg-white column" style="min-height: 520px;">
+      <div id="ticket-pos" class="col-12 col-md-5 col-lg-4 q-mb-xl q-mb-md-none" style="width: 100%; max-width: 100%;">
+        <q-card flat class="rounded-borders shadow-2 bg-white column overflow-hidden" style="min-height: 520px; width: 100%; max-width: 100%;">
           <!-- Cabecera del Ticket -->
           <q-card-section class="gradient-navy text-white q-py-sm">
             <div class="row items-center justify-between">
@@ -201,9 +201,9 @@
           <!-- Asignación de Cliente -->
           <q-card-section class="q-py-xs bg-grey-2 border-bottom">
             <div class="row items-center justify-between">
-              <div class="col row items-center no-wrap">
-                <q-icon name="person" color="primary" size="18px" class="q-mr-xs" />
-                <span class="text-caption text-weight-bold text-primary ellipsis">
+              <div class="col row items-center no-wrap" style="min-width: 0;">
+                <q-icon name="person" color="primary" size="18px" class="q-mr-xs shrink-0" />
+                <span class="text-caption text-weight-bold text-primary ellipsis" style="min-width: 0;">
                   {{ posStore.clienteSeleccionado ? posStore.clienteSeleccionado.Nombre : 'Venta a Mostrador / General' }}
                 </span>
               </div>
@@ -211,6 +211,7 @@
                 dense
                 size="sm"
                 color="secondary"
+                class="shrink-0 q-ml-xs"
                 :label="posStore.clienteSeleccionado ? 'Cambiar' : 'Asignar'"
                 @click="mostrarDialogoCliente = true"
               />
@@ -218,23 +219,24 @@
           </q-card-section>
 
           <!-- Lista de Artículos en el Carrito -->
-          <q-card-section class="col q-pa-none overflow-auto" style="max-height: 280px;">
-            <q-list v-if="posStore.carrito.length > 0" separator>
+          <q-card-section class="col q-pa-none overflow-auto" style="max-height: 280px; width: 100%; max-width: 100%;">
+            <q-list v-if="posStore.carrito.length > 0" separator style="width: 100%; max-width: 100%;">
               <q-item
                 v-for="item in posStore.carrito"
                 :key="item.id"
-                class="q-py-xs"
+                class="q-py-xs items-center"
+                style="min-width: 0; width: 100%; max-width: 100%; overflow: hidden;"
               >
-                <q-item-section>
-                  <q-item-label class="text-weight-bold text-primary ellipsis">
+                <q-item-section style="min-width: 0; overflow: hidden;">
+                  <q-item-label class="text-weight-bold text-primary ellipsis" style="max-width: 100%;">
                     {{ item.Nombre }}
                   </q-item-label>
-                  <q-item-label caption>
-                    codigo: {{ item.id }} • ${{ formatPrecio(item.Precio) }} c/u
+                  <q-item-label caption class="ellipsis">
+                    cód: {{ item.id }} • ${{ formatPrecio(item.Precio) }} c/u
                   </q-item-label>
                 </q-item-section>
 
-                <q-item-section side>
+                <q-item-section side class="q-pl-xs shrink-0">
                   <div class="row items-center no-wrap q-gutter-x-xs">
                     <q-btn
                       round
@@ -244,7 +246,7 @@
                       color="red"
                       @click="posStore.modificarCantidad(item.id, -1)"
                     />
-                    <span class="text-weight-bold text-subtitle2 text-primary q-px-xs">
+                    <span class="text-weight-bold text-subtitle2 text-primary q-px-xs text-center" style="min-width: 16px;">
                       {{ item.cantidad }}
                     </span>
                     <q-btn
@@ -255,7 +257,7 @@
                       color="primary"
                       @click="posStore.modificarCantidad(item.id, 1)"
                     />
-                    <div class="text-weight-bolder text-primary q-ml-sm" style="min-width: 60px; text-align: right;">
+                    <div class="text-weight-bolder text-primary q-ml-xs text-right" style="min-width: 55px;">
                       ${{ formatPrecio(item.Precio * item.cantidad) }}
                     </div>
                   </div>
@@ -539,18 +541,18 @@
       </q-card>
     </q-dialog>
 
-    <!-- Barra Flotante de Carrito Móvil (Acceso rápido con pulgar) -->
+    <!-- Barra Flotante de Carrito Móvil (Acceso rápido con pulgar, se oculta cuando el ticket ya está a la vista) -->
     <div
-      v-if="posStore.carrito.length > 0"
+      v-if="posStore.carrito.length > 0 && !ticketVisible"
       class="lt-md fixed-bottom q-pa-sm z-top"
       style="bottom: 56px;"
     >
       <q-card class="gradient-navy text-white shadow-6 rounded-borders-lg q-pa-sm gold-border">
         <div class="row items-center justify-between no-wrap">
-          <div class="row items-center q-gutter-x-xs no-wrap">
-            <q-avatar size="32px" color="secondary" text-color="primary" icon="shopping_bag" class="shadow-1" />
-            <div>
-              <div class="text-caption text-weight-bold text-gold">
+          <div class="row items-center q-gutter-x-xs no-wrap" style="min-width: 0;">
+            <q-avatar size="32px" color="secondary" text-color="primary" icon="shopping_bag" class="shadow-1 shrink-0" />
+            <div style="min-width: 0;">
+              <div class="text-caption text-weight-bold text-gold ellipsis">
                 {{ posStore.totalArticulos }} pzas &bull; ${{ formatPrecio(posStore.totalCobro) }}
               </div>
               <div class="text-caption text-grey-4 ellipsis" style="font-size: 0.68rem; max-width: 140px;">
@@ -563,7 +565,7 @@
             unelevated
             dense
             rounded
-            class="gradient-gold text-primary text-weight-bolder q-px-md text-caption shadow-2"
+            class="gradient-gold text-primary text-weight-bolder q-px-md text-caption shadow-2 shrink-0"
             label="VER TICKET"
             icon-right="arrow_downward"
             @click="irAlTicketMobile"
@@ -575,7 +577,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useQuasar } from 'quasar';
 import db from '../db/index.js';
 import api from '../services/api.js';
@@ -597,6 +599,8 @@ const clientes = ref([]);
 const filtroBusqueda = ref('');
 const categoriaSeleccionada = ref('Todos');
 const categorias = ref(['Todos', 'Collares', 'Aretes', 'Pulseras', 'Anillos', 'Dijes', 'Relojes', 'Accesorios']);
+const ticketVisible = ref(false);
+let ticketObserver = null;
 
 const mostrarDialogoCliente = ref(false);
 const busquedaCliente = ref('');
@@ -958,6 +962,26 @@ function cerrarEscaner() {
 
 onMounted(() => {
   cargarCatalogoLocal();
+
+  // Observar si el ticket ya está a la vista para ocultar la barra flotante móvil
+  nextTick(() => {
+    const el = document.getElementById('ticket-pos');
+    if (el && 'IntersectionObserver' in window) {
+      ticketObserver = new IntersectionObserver(
+        (entries) => {
+          ticketVisible.value = entries[0]?.isIntersecting || false;
+        },
+        { threshold: 0.1 }
+      );
+      ticketObserver.observe(el);
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  if (ticketObserver) {
+    ticketObserver.disconnect();
+  }
 });
 </script>
 
