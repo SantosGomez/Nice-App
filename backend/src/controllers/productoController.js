@@ -15,11 +15,17 @@ function guardarFotoEnCarpeta(base64String) {
     return base64String;
   }
 
-  // Guardar en la carpeta public/images a nivel del backend
-  const carpetaDestino = path.join(__dirname, '../public/images');
+  // Guardar en la carpeta public/images o /tmp/images en Vercel
+  const carpetaDestino = process.env.VERCEL
+    ? path.join('/tmp', 'images')
+    : path.join(__dirname, '../public/images');
 
-  if (!fs.existsSync(carpetaDestino)) {
-    fs.mkdirSync(carpetaDestino, { recursive: true });
+  try {
+    if (!fs.existsSync(carpetaDestino)) {
+      fs.mkdirSync(carpetaDestino, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('Directorio de imágenes no modificable:', err.message);
   }
 
   const matches = base64String.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
