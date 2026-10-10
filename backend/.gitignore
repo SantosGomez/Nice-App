@@ -7,5 +7,7 @@ src/public/images/joya_*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.sql
+exportar_db.js
 .DS_Store
 Thumbs.db

@@ -2,11 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
+import { uploadImageToCloudinary, isCloudinaryConfigured } from '../config/cloudinary.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Directorio de uploads (backend/uploads o /tmp/uploads en Serverless como Vercel)
+// Directorio de uploads local de respaldo (fallback si Cloudinary no estuviera configurado)
 const uploadsDir = process.env.VERCEL
   ? path.join('/tmp', 'uploads')
   : path.join(__dirname, '../../uploads');
@@ -19,17 +20,8 @@ try {
   console.warn('Directorio de uploads no modificable en este entorno:', err.message);
 }
 
-// Configuración de almacenamiento de Multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const cleanName = `joya_${Date.now()}_${Math.round(Math.random() * 1e4)}${ext}`;
-    cb(null, cleanName);
-  }
-});
+// Usamos memoryStorage en Multer para compatibilidad total con Serverless
+const storage = multer.memoryStorage();
 
 // Filtro para aceptar solo imágenes
 const fileFilter = (req, file, cb) => {
@@ -64,16 +56,38 @@ export const UploadController = {
         });
       }
 
-      const relativeUrl = `/uploads/${req.file.filename}`;
+      // 1. Si Cloudinary está configurado, subir directamente a la nube
+      if (isCloudinaryConfigured()) {
+        const secureUrl = await uploadImageToCloudinary(req.file.buffer);
+        return res.status(200).json({
+          success: true,
+          message: 'Imagen subida exitosamente a Cloudinary',
+          data: {
+            filename: req.file.originalname,
+            url: secureUrl,
+            fullUrl: secureUrl,
+            size: req.file.size
+          }
+        });
+      }
+
+      // 2. Fallback a almacenamiento en disco local
+      const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+      const cleanName = `joya_${Date.now()}_${Math.round(Math.random() * 1e4)}${ext}`;
+      const filePath = path.join(uploadsDir, cleanName);
+
+      await fs.promises.writeFile(filePath, req.file.buffer);
+
+      const relativeUrl = `/uploads/${cleanName}`;
       const protocol = req.protocol;
       const host = req.get('host');
       const fullUrl = `${protocol}://${host}${relativeUrl}`;
 
       return res.status(200).json({
         success: true,
-        message: 'Imagen subida exitosamente',
+        message: 'Imagen subida exitosamente a disco local',
         data: {
-          filename: req.file.filename,
+          filename: cleanName,
           url: relativeUrl,
           fullUrl,
           size: req.file.size
@@ -104,7 +118,22 @@ export const UploadController = {
         });
       }
 
-      // Extraer tipo MIME y datos en base64
+      // 1. Si Cloudinary está configurado, subir directamente a la nube
+      if (isCloudinaryConfigured()) {
+        const secureUrl = await uploadImageToCloudinary(image);
+        return res.status(200).json({
+          success: true,
+          message: 'Imagen Base64 procesada y subida a Cloudinary exitosamente',
+          data: {
+            filename: filename || 'joya_cloudinary.jpg',
+            url: secureUrl,
+            fullUrl: secureUrl,
+            size: image.length
+          }
+        });
+      }
+
+      // 2. Fallback a almacenamiento local
       const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
       let buffer = null;
       let ext = '.jpg';
@@ -115,7 +144,6 @@ export const UploadController = {
         else if (mimeType.includes('webp')) ext = '.webp';
         buffer = Buffer.from(matches[2], 'base64');
       } else {
-        // Asumir base64 puro
         buffer = Buffer.from(image, 'base64');
       }
 
@@ -131,7 +159,7 @@ export const UploadController = {
 
       return res.status(200).json({
         success: true,
-        message: 'Imagen Base64 procesada y guardada exitosamente',
+        message: 'Imagen Base64 procesada y guardada localmente',
         data: {
           filename: cleanFilename,
           url: relativeUrl,

@@ -2,20 +2,31 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ProductoModel } from '../models/productoModel.js';
+import { uploadImageToCloudinary, isCloudinaryConfigured } from '../config/cloudinary.js';
 
 // Recrear __dirname para ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Convierte una cadena Base64 en archivo físico y devuelve la ruta relativa.
+ * Sube la imagen a Cloudinary (o a almacenamiento local como fallback) y devuelve la URL.
  */
-function guardarFotoEnCarpeta(base64String) {
+async function guardarFotoEnCarpeta(base64String) {
   if (!base64String || !base64String.startsWith('data:image')) {
     return base64String;
   }
 
-  // Guardar en la carpeta public/images o /tmp/images en Vercel
+  // 1. Si Cloudinary está disponible, subir a Cloudinary y devolver la URL segura
+  if (isCloudinaryConfigured()) {
+    try {
+      const urlCloudinary = await uploadImageToCloudinary(base64String);
+      return urlCloudinary;
+    } catch (err) {
+      console.error('Error al subir imagen a Cloudinary en productoController:', err.message);
+    }
+  }
+
+  // 2. Fallback a almacenamiento en disco
   const carpetaDestino = process.env.VERCEL
     ? path.join('/tmp', 'images')
     : path.join(__dirname, '../public/images');
@@ -37,9 +48,13 @@ function guardarFotoEnCarpeta(base64String) {
   const nombreArchivo = `joya_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
   const rutaCompletaArchivo = path.join(carpetaDestino, nombreArchivo);
 
-  fs.writeFileSync(rutaCompletaArchivo, bufferImagen);
-
-  return `/images/${nombreArchivo}`;
+  try {
+    fs.writeFileSync(rutaCompletaArchivo, bufferImagen);
+    return `/images/${nombreArchivo}`;
+  } catch (err) {
+    console.error('Error al guardar archivo local:', err.message);
+    return base64String;
+  }
 }
 
 export const ProductoController = {
@@ -150,7 +165,7 @@ export const ProductoController = {
       }
 
       // Procesar la imagen si viene en Base64
-      const rutaGuardadaImg = guardarFotoEnCarpeta(ImgURL);
+      const rutaGuardadaImg = await guardarFotoEnCarpeta(ImgURL);
 
       const nuevoProducto = await ProductoModel.create({
         id,
@@ -188,7 +203,7 @@ export const ProductoController = {
 
       // Si se envía una nueva imagen en Base64, procesarla
       if (updateData.ImgURL) {
-        updateData.ImgURL = guardarFotoEnCarpeta(updateData.ImgURL);
+        updateData.ImgURL = await guardarFotoEnCarpeta(updateData.ImgURL);
       }
 
       const updated = await ProductoModel.update(id, updateData);
