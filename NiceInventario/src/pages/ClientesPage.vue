@@ -1,8 +1,8 @@
 <template>
   <q-page class="q-pa-md bg-grey-1">
     <!-- Cabecera de Clientes -->
-    <div class="row items-center justify-between q-mb-md">
-      <div>
+    <div class="page-header animate-fade-in">
+      <div class="page-header__title">
         <div class="text-h5 text-weight-bolder text-primary brand-font">
           Directorio de Clientes
         </div>
@@ -17,13 +17,13 @@
         color="primary"
         icon="person_add"
         label="Nuevo Cliente"
-        class="text-weight-bold shadow-1"
+        class="text-weight-bold shadow-1 touch-target-min"
         @click="abrirModalNuevo"
       />
     </div>
 
     <!-- Buscador y Filtro por Empresaria (si es Admin) -->
-    <q-card flat class="rounded-borders shadow-1 q-mb-md bg-white">
+    <q-card flat class="rounded-borders shadow-1 q-mb-sm bg-white">
       <q-card-section class="q-pa-sm">
         <div class="row q-col-gutter-sm items-center">
           <div class="col-12" :class="authStore.esAdmin ? 'col-sm-7' : 'col-sm-12'">
@@ -60,33 +60,80 @@
       </q-card-section>
     </q-card>
 
+    <!-- Barra de Filtro Alfabético estilo Directorio (A-Z) -->
+    <q-card flat class="rounded-borders shadow-1 q-mb-md bg-white directory-bar-card">
+      <div class="directory-bar row items-center no-wrap q-py-xs q-px-sm">
+        <q-btn
+          unelevated
+          rounded
+          dense
+          :class="[
+            'directory-all-btn text-weight-bolder q-px-md',
+            letraSeleccionada === 'TODOS' ? 'directory-btn--active' : 'bg-grey-2 text-grey-8'
+          ]"
+          label="Todos"
+          @click="seleccionarLetra('TODOS')"
+        >
+          <q-badge
+            floating
+            rounded
+            :color="letraSeleccionada === 'TODOS' ? 'secondary' : 'grey-5'"
+            :text-color="letraSeleccionada === 'TODOS' ? 'primary' : 'white'"
+            class="text-weight-bold"
+            style="top: -4px; right: -6px;"
+          >
+            {{ clientesBase.length }}
+          </q-badge>
+        </q-btn>
+
+        <q-separator vertical spaced class="gt-xs q-mx-xs" />
+
+        <div class="directory-letters-scroll row items-center no-wrap col">
+          <button
+            v-for="letra in abecedario"
+            :key="letra"
+            type="button"
+            :class="[
+              'directory-letter-pill',
+              letraSeleccionada === letra ? 'directory-letter-pill--active' : '',
+              conteosPorLetra[letra] ? 'directory-letter-pill--has-items' : 'directory-letter-pill--empty'
+            ]"
+            @click="seleccionarLetra(letra)"
+          >
+            <span class="letter-char">{{ letra }}</span>
+            <span v-if="conteosPorLetra[letra]" class="letter-count">{{ conteosPorLetra[letra] }}</span>
+          </button>
+        </div>
+      </div>
+    </q-card>
+
     <!-- Lista de Clientes en Tarjetas Táctiles -->
-    <div v-if="clientesFiltrados.length > 0" class="row q-col-gutter-sm">
+    <div v-if="clientesFiltrados.length > 0" class="row q-col-gutter-sm animate-stagger">
       <div
         v-for="c in clientesFiltrados"
         :key="c.IdCliente"
         class="col-12 col-sm-6 col-md-4"
       >
-        <q-card flat class="rounded-borders shadow-1 bg-white full-height column justify-between">
+        <q-card flat class="rounded-borders shadow-1 bg-white full-height column justify-between touch-card">
           <q-card-section class="q-pa-md">
             <div class="row items-start justify-between no-wrap">
-              <div class="row items-center q-gutter-x-sm no-wrap">
-                <q-avatar color="primary" text-color="gold" size="44px" class="text-weight-bold shadow-1">
+              <div class="row items-center q-gutter-x-sm no-wrap" style="min-width: 0;">
+                <q-avatar color="primary" text-color="gold" size="44px" class="text-weight-bold shadow-1 shrink-0">
                   {{ obtenerIniciales(c.Nombre) }}
                 </q-avatar>
-                <div>
+                <div style="min-width: 0;">
                   <div class="text-subtitle1 text-weight-bold text-primary line-clamp-1">
                     {{ c.Nombre }}
                   </div>
-                  <div class="text-caption text-grey-6 row items-center">
-                    <q-icon name="phone" size="14px" class="q-mr-xs" />
-                    {{ c.Telefono || 'Sin teléfono' }}
+                  <div class="text-caption text-grey-6 row items-center ellipsis">
+                    <q-icon name="phone" size="14px" class="q-mr-xs shrink-0" />
+                    <span>{{ c.Telefono || 'Sin teléfono' }}</span>
                   </div>
                 </div>
               </div>
 
               <!-- Menú de Acciones -->
-              <q-btn flat round dense icon="more_vert" color="grey-7">
+              <q-btn flat round dense icon="more_vert" color="grey-7" class="shrink-0">
                 <q-menu auto-close>
                   <q-list style="min-width: 140px;">
                     <q-item clickable @click="editarCliente(c)">
@@ -102,11 +149,16 @@
               </q-btn>
             </div>
 
-            <!-- Badge de Empresaria Asignada -->
-            <div class="row items-center q-mt-xs q-gutter-x-xs">
+            <!-- Badges: Empresaria Asignada y Estado Local/Offline -->
+            <div class="row items-center q-mt-xs q-gutter-x-xs q-gutter-y-xs">
               <q-badge color="amber-2" text-color="dark" class="text-weight-bold">
                 <q-icon name="person_pin" size="12px" class="q-mr-xs text-primary" />
                 {{ c.EmpresariaNombre || 'Empresaria Nice' }}
+              </q-badge>
+
+              <q-badge v-if="c.localOnly === 1" color="grey-3" text-color="grey-8">
+                <q-icon name="cloud_queue" size="12px" class="q-mr-xs" />
+                Pendiente sync
               </q-badge>
             </div>
 
@@ -143,11 +195,52 @@
       </div>
     </div>
 
-    <!-- Estado Vacío -->
-    <div v-else class="text-center q-pa-xl text-grey-6">
-      <q-icon name="group_off" size="64px" color="grey-4" />
-      <div class="text-h6 q-mt-sm">No hay clientes registrados</div>
-      <div class="text-caption">Comienza agregando clientas para llevar un control de apartados y compras</div>
+    <!-- Estados Vacíos Contextuales -->
+    <div v-else class="empty-state">
+      <template v-if="letraSeleccionada !== 'TODOS'">
+        <q-icon name="sort_by_alpha" size="56px" color="grey-4" class="empty-state__icon" />
+        <div class="empty-state__title">No hay clientas con la letra "{{ letraSeleccionada }}"</div>
+        <div class="empty-state__desc q-mb-sm">Puedes elegir otra letra del abecedario o ver todas las clientas</div>
+        <q-btn
+          unelevated
+          rounded
+          dense
+          color="primary"
+          label="Ver todas las clientas"
+          class="q-px-md text-weight-bold"
+          @click="seleccionarLetra('TODOS')"
+        />
+      </template>
+
+      <template v-else-if="busqueda">
+        <q-icon name="search_off" size="56px" color="grey-4" class="empty-state__icon" />
+        <div class="empty-state__title">Sin resultados para "{{ busqueda }}"</div>
+        <div class="empty-state__desc q-mb-sm">Intenta con otro término de búsqueda o limpia el filtro</div>
+        <q-btn
+          outline
+          rounded
+          dense
+          color="primary"
+          label="Limpiar búsqueda"
+          class="q-px-md text-weight-bold"
+          @click="busqueda = ''"
+        />
+      </template>
+
+      <template v-else>
+        <q-icon name="group_off" size="64px" color="grey-4" class="empty-state__icon" />
+        <div class="empty-state__title">Sin clientes registradas</div>
+        <div class="empty-state__desc q-mb-sm">Comienza agregando clientas para llevar un control de apartados y compras</div>
+        <q-btn
+          unelevated
+          rounded
+          color="primary"
+          icon="person_add"
+          label="Registrar primer cliente"
+          class="text-weight-bold"
+          @click="abrirModalNuevo"
+        />
+      </template>
     </div>
 
     <!-- Modal: Nuevo / Editar Cliente -->
@@ -164,12 +257,25 @@
         <q-card-section class="q-pa-md">
           <div class="q-mb-sm">
             <label class="text-caption text-weight-bold text-grey-8">Nombre Completo *</label>
-            <q-input v-model="formCliente.Nombre" dense outlined placeholder="Ej. María Elena González" class="q-mt-xs" />
+            <q-input
+              v-model="formCliente.Nombre"
+              dense
+              outlined
+              placeholder="Ej. María Elena González"
+              class="q-mt-xs"
+              autofocus
+            />
           </div>
 
           <div class="q-mb-sm">
             <label class="text-caption text-weight-bold text-grey-8">Teléfono (WhatsApp)</label>
-            <q-input v-model="formCliente.Telefono" dense outlined placeholder="Ej. 3312345678" class="q-mt-xs" />
+            <q-input
+              v-model="formCliente.Telefono"
+              dense
+              outlined
+              placeholder="Ej. 3312345678"
+              class="q-mt-xs"
+            />
           </div>
 
           <!-- Selector de Empresaria Asignada -->
@@ -202,6 +308,7 @@
           <q-btn
             unelevated
             color="primary"
+            :loading="guardando"
             :label="editando ? 'Guardar Cambios' : 'Registrar Cliente'"
             class="full-width text-weight-bold text-subtitle1 q-py-sm shadow-1"
             @click="guardarCliente"
@@ -233,8 +340,16 @@ const networkStore = useNetworkStore();
 const clientes = ref([]);
 const busqueda = ref('');
 const filtroEmpresaria = ref(null);
+const letraSeleccionada = ref('TODOS');
 const mostrarModal = ref(false);
 const editando = ref(false);
+const guardando = ref(false);
+
+const abecedario = [
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+  'K', 'L', 'M', 'N', 'Ñ', 'O', 'P', 'Q', 'R', 'S',
+  'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '#'
+];
 
 const formCliente = ref({
   IdCliente: null,
@@ -259,35 +374,35 @@ const opcionesEmpresariasModal = computed(() => {
   }));
 });
 
-async function cargarClientes() {
-  try {
-    if (networkStore.isOnline) {
-      try {
-        const resp = await api.get('/clientes');
-        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
-          clientes.value = resp.data.data;
-          await db.clientes.bulkPut(resp.data.data);
-          return;
-        }
-      } catch (e) {
-        console.warn('Fallback a Dexie para clientes:', e.message);
-      }
-    }
+/**
+ * Normaliza la primera letra del nombre eliminando tildes y diacríticos.
+ */
+function obtenerPrimeraLetra(nombre) {
+  if (!nombre || typeof nombre !== 'string') return '#';
+  const trimmed = nombre.trim();
+  if (trimmed.length === 0) return '#';
+  const primera = trimmed.charAt(0).toUpperCase();
+  if (primera === 'Ñ') return 'Ñ';
+  // Quitar tildes para agrupar A-Z estándar
+  const normalizada = primera.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (/^[A-Z]$/.test(normalizada)) {
+    return normalizada;
+  }
+  return '#';
+}
 
-    clientes.value = await db.clientes.toArray();
-  } catch (err) {
-    console.error('Error cargando clientes:', err);
+function seleccionarLetra(letra) {
+  if (letraSeleccionada.value === letra) {
+    letraSeleccionada.value = 'TODOS';
+  } else {
+    letraSeleccionada.value = letra;
   }
 }
 
-watch(
-  () => empresariaStore.empresariaActiva?.IdEmpresaria,
-  () => {
-    cargarClientes();
-  }
-);
-
-const clientesFiltrados = computed(() => {
+/**
+ * Clientes filtrados por empresaria (base antes de letra y búsqueda de texto).
+ */
+const clientesBase = computed(() => {
   let list = clientes.value;
 
   if (filtroEmpresaria.value) {
@@ -299,12 +414,77 @@ const clientesFiltrados = computed(() => {
     }
   }
 
-  if (!busqueda.value) return list;
-  const q = busqueda.value.toLowerCase();
-  return list.filter(
-    (c) => c.Nombre?.toLowerCase().includes(q) || c.Telefono?.includes(q)
-  );
+  return list;
 });
+
+/**
+ * Mapa de conteo de clientes por letra en la lista base actual.
+ */
+const conteosPorLetra = computed(() => {
+  const conteos = {};
+  for (const c of clientesBase.value) {
+    const l = obtenerPrimeraLetra(c.Nombre);
+    conteos[l] = (conteos[l] || 0) + 1;
+  }
+  return conteos;
+});
+
+/**
+ * Clientes finales filtrados por letra del abecedario y búsqueda libre.
+ */
+const clientesFiltrados = computed(() => {
+  let list = clientesBase.value;
+
+  // Filtro alfabético
+  if (letraSeleccionada.value && letraSeleccionada.value !== 'TODOS') {
+    list = list.filter((c) => obtenerPrimeraLetra(c.Nombre) === letraSeleccionada.value);
+  }
+
+  // Filtro por búsqueda de texto
+  if (busqueda.value && busqueda.value.trim() !== '') {
+    const q = busqueda.value.toLowerCase().trim();
+    list = list.filter(
+      (c) => c.Nombre?.toLowerCase().includes(q) || c.Telefono?.includes(q)
+    );
+  }
+
+  return list;
+});
+
+async function cargarClientes() {
+  try {
+    if (networkStore.isOnline) {
+      try {
+        const resp = await api.get('/clientes');
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          // Guardar clientes del servidor en Dexie sin perder flags locales
+          for (const c of resp.data.data) {
+            await db.clientes.put({
+              ...c,
+              localOnly: 0
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Fallback a Dexie para clientes:', e.message);
+      }
+    }
+
+    // Leemos de Dexie todos los clientes (tanto los sincronizados como los locales pendientes)
+    const todos = await db.clientes.toArray();
+    todos.sort((a, b) => (a.Nombre || '').localeCompare(b.Nombre || '', 'es', { sensitivity: 'base' }));
+    clientes.value = todos;
+  } catch (err) {
+    console.error('Error cargando clientes:', err);
+  }
+}
+
+watch(
+  () => empresariaStore.empresariaActiva?.IdEmpresaria,
+  () => {
+    cargarClientes();
+  }
+);
 
 function obtenerIniciales(nombre) {
   if (!nombre) return 'C';
@@ -318,6 +498,7 @@ function obtenerIniciales(nombre) {
 function abrirModalNuevo() {
   editando.value = false;
   const defaultEmpId =
+    filtroEmpresaria.value ||
     empresariaStore.empresariaActiva?.IdEmpresaria ||
     authStore.usuario?.IdEmpresaria ||
     (empresariaStore.empresarias[0]?.IdEmpresaria ?? 2);
@@ -351,9 +532,16 @@ async function guardarCliente() {
     return;
   }
 
-  const empId = Number(f.EmpresariaId || empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2);
-  const nombreEmpresaria = empresariaStore.empresarias.find((e) => e.IdEmpresaria === empId)?.Nombre || 'Empresaria Nice';
+  const empId = Number(
+    f.EmpresariaId ||
+    empresariaStore.empresariaActiva?.IdEmpresaria ||
+    authStore.usuario?.IdEmpresaria ||
+    2
+  );
+  const nombreEmpresaria =
+    empresariaStore.empresarias.find((e) => e.IdEmpresaria === empId)?.Nombre || 'Empresaria Nice';
 
+  guardando.value = true;
   try {
     if (editando.value && f.IdCliente) {
       const datosActualizar = {
@@ -367,30 +555,84 @@ async function guardarCliente() {
       await db.clientes.update(f.IdCliente, datosActualizar);
 
       if (networkStore.isOnline) {
-        api.put(`/clientes/${f.IdCliente}`, datosActualizar).catch(() => {});
+        try {
+          await api.put(`/clientes/${f.IdCliente}`, datosActualizar);
+        } catch (apiErr) {
+          console.warn('No se pudo actualizar en backend inmediatamente:', apiErr.message);
+        }
       }
       $q.notify({ type: 'positive', message: 'Cliente actualizado' });
     } else {
-      const nuevo = {
-        EmpresariaId: empId,
-        EmpresariaNombre: nombreEmpresaria,
-        Nombre: f.Nombre.trim(),
-        Telefono: f.Telefono ? f.Telefono.trim() : null,
-        Nota: f.Nota ? f.Nota.trim() : null,
-        localOnly: 1
-      };
-      const newId = await db.clientes.add(nuevo);
+      let nuevoCliente = null;
 
+      // 1. Si hay red, registrar en el backend con await para obtener el IdCliente oficial
       if (networkStore.isOnline) {
-        api.post('/clientes', { ...nuevo, IdCliente: newId }).catch(() => {});
+        try {
+          const resp = await api.post('/clientes', {
+            Nombre: f.Nombre.trim(),
+            Telefono: f.Telefono ? f.Telefono.trim() : null,
+            Nota: f.Nota ? f.Nota.trim() : null,
+            EmpresariaId: empId
+          });
+
+          if (resp.data && resp.data.success && resp.data.data) {
+            nuevoCliente = {
+              ...resp.data.data,
+              EmpresariaNombre: nombreEmpresaria,
+              localOnly: 0
+            };
+            // Guardar en Dexie con el ID real
+            await db.clientes.put(nuevoCliente);
+          }
+        } catch (apiErr) {
+          console.warn('Servidor no disponible, guardando cliente en Dexie:', apiErr.message);
+        }
       }
-      $q.notify({ type: 'positive', message: 'Cliente registrado' });
+
+      // 2. Si no se pudo guardar en backend (offline o error), guardar en Dexie como localOnly
+      if (!nuevoCliente) {
+        const nuevoLocal = {
+          EmpresariaId: empId,
+          EmpresariaNombre: nombreEmpresaria,
+          Nombre: f.Nombre.trim(),
+          Telefono: f.Telefono ? f.Telefono.trim() : null,
+          Nota: f.Nota ? f.Nota.trim() : null,
+          localOnly: 1
+        };
+        const newId = await db.clientes.add(nuevoLocal);
+        nuevoLocal.IdCliente = newId;
+        nuevoCliente = nuevoLocal;
+      }
+
+      // 3. Garantizar que el cliente nuevo sea visible de inmediato:
+      // Limpiar texto de búsqueda que podría ocultarlo
+      busqueda.value = '';
+
+      // Si el filtro de empresaria activo no coincide con la del nuevo cliente, quitar el filtro
+      if (filtroEmpresaria.value && Number(filtroEmpresaria.value) !== empId) {
+        filtroEmpresaria.value = null;
+      }
+
+      // Si hay un filtro por letra que no corresponde a la inicial del nuevo cliente, restablecer a TODOS
+      const letraNuevo = obtenerPrimeraLetra(nuevoCliente.Nombre);
+      if (letraSeleccionada.value !== 'TODOS' && letraSeleccionada.value !== letraNuevo) {
+        letraSeleccionada.value = 'TODOS';
+      }
+
+      $q.notify({
+        type: 'positive',
+        icon: 'person_add',
+        message: `Cliente "${nuevoCliente.Nombre}" registrado con éxito`
+      });
     }
 
     mostrarModal.value = false;
     await cargarClientes();
   } catch (err) {
+    console.error('Error al guardar cliente:', err);
     $q.notify({ type: 'negative', message: 'Error al guardar: ' + err.message });
+  } finally {
+    guardando.value = false;
   }
 }
 
@@ -437,5 +679,98 @@ onMounted(() => {
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Directorio de Abecedario */
+.directory-bar-card {
+  border-radius: 14px;
+}
+
+.directory-bar {
+  gap: 8px;
+}
+
+.directory-all-btn {
+  font-size: 0.78rem;
+  transition: all 0.2s ease;
+}
+
+.directory-btn--active {
+  background: #0d1b2a !important;
+  color: #d4af37 !important;
+  box-shadow: 0 2px 6px rgba(13, 27, 42, 0.25);
+}
+
+.directory-letters-scroll {
+  overflow-x: auto;
+  gap: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px 0;
+}
+
+.directory-letters-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.directory-letter-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.directory-letter-pill:hover {
+  background: #f1f5f9;
+  color: #0d1b2a;
+}
+
+.directory-letter-pill--has-items {
+  color: #0d1b2a;
+  font-weight: 700;
+}
+
+.directory-letter-pill--empty {
+  color: #94a3b8;
+  opacity: 0.55;
+}
+
+.directory-letter-pill--active {
+  background: #0d1b2a !important;
+  color: #d4af37 !important;
+  border-color: rgba(212, 175, 55, 0.5) !important;
+  box-shadow: 0 2px 8px rgba(13, 27, 42, 0.25);
+  font-weight: 700;
+  transform: scale(1.05);
+}
+
+.letter-count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  font-size: 0.6rem;
+  line-height: 1;
+  background: #d4af37;
+  color: #0d1b2a;
+  font-weight: 800;
+  border-radius: 6px;
+  padding: 1px 3px;
+}
+
+.directory-letter-pill--active .letter-count {
+  background: #ffffff;
+  color: #0d1b2a;
 }
 </style>

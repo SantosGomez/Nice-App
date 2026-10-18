@@ -1,110 +1,136 @@
 <template>
   <q-page class="q-pa-md bg-grey-1">
-    <!-- Encabezado y Estadísticas de Inventario -->
-    <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12 col-md-8">
-        <div class="row items-center justify-between">
-          <div>
-            <div class="text-h5 text-weight-bolder text-primary brand-font">
-              Catálogo e Inventario
-            </div>
-            <div class="text-caption text-grey-7">
-              Distribuidora:
-              <span class="text-weight-bold text-primary">{{
-                empresariaStore.empresariaActiva?.Nombre
-              }}</span>
-              • Descuento:
-              <span class="text-weight-bold text-secondary"
-                >{{ empresariaStore.descuentoActivo }}%</span
-              >
-            </div>
-          </div>
-
-          <div class="row q-gutter-sm q-mt-xs-sm">
-            <!-- Botón Escanear QR con Cámara -->
-            <q-btn
-              unelevated
-              rounded
-              color="primary"
-              icon="qr_code_scanner"
-              label="Escanear QR"
-              class="text-weight-bold shadow-1"
-              @click="abrirEscanerQR"
-            />
-            <q-btn
-              unelevated
-              rounded
-              color="secondary"
-              text-color="primary"
-              icon="add_circle"
-              label="Entrada de Stock"
-              class="text-weight-bold"
-              @click="abrirModalEntrada"
-            />
-            <q-btn
-              outline
-              rounded
-              color="primary"
-              icon="diamond"
-              label="Nueva Joya"
-              class="text-weight-bold"
-              @click="abrirModalNuevoManual"
-            />
-            <q-btn
-              outline
-              rounded
-              color="primary"
-              icon="history"
-              label="Kardex"
-              class="text-weight-bold"
-              @click="abrirKardexGeneral"
-            />
-            <!-- Botón de Exportar Reportes -->
-            <q-btn-dropdown
-              flat
-              rounded
-              dense
-              color="primary"
-              icon="download"
-              label="Exportar"
-              class="text-weight-bold bg-grey-2 q-px-sm"
-            >
-              <q-list>
-                <q-item clickable v-close-popup @click="exportarExcel">
-                  <q-item-section avatar><q-icon name="table_chart" color="positive" /></q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-bold">Descargar Excel (.xlsx)</q-item-label>
-                    <q-item-label caption>Exportar joyas con stock y costos</q-item-label>
-                  </q-item-section>
-                </q-item>
-                <q-item clickable v-close-popup @click="imprimirInventario">
-                  <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
-                  <q-item-section>
-                    <q-item-label class="text-weight-bold">Imprimir Catálogo / PDF</q-item-label>
-                    <q-item-label caption>Generar reporte imprimible</q-item-label>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-btn-dropdown>
-          </div>
+    <!-- Encabezado e Inventario -->
+    <div class="page-header animate-fade-in">
+      <div class="page-header__title">
+        <div class="text-h5 text-weight-bolder text-primary brand-font">
+          Catálogo e Inventario
+        </div>
+        <div class="text-caption text-grey-7">
+          Distribuidora:
+          <span class="text-weight-bold text-primary">{{ empresariaStore.empresariaActiva?.Nombre }}</span>
+          • Descuento:
+          <span class="text-weight-bold text-secondary">{{ empresariaStore.descuentoActivo }}%</span>
         </div>
       </div>
 
-      <!-- Métricas Rápidas en Tarjetas -->
-      <div class="col-12 col-md-4">
-        <div class="row q-col-gutter-sm">
-          <div class="col-6">
-            <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
-              <div class="text-caption text-grey-6">Modelos</div>
-              <div class="text-h6 text-weight-bolder text-primary">{{ productos.length }}</div>
-            </q-card>
-          </div>
-          <div class="col-6">
-            <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
-              <div class="text-caption text-grey-6">Piezas en Stock</div>
-              <div class="text-h6 text-weight-bolder text-positive">{{ totalPiezasStock }}</div>
-            </q-card>
-          </div>
+      <!-- Acciones — escritorio / tablet: fila de botones; móvil: FAB expandible -->
+      <div class="page-header__actions">
+        <!-- Botones visibles en sm+ -->
+        <q-btn
+          unelevated
+          rounded
+          color="primary"
+          icon="qr_code_scanner"
+          label="Escanear QR"
+          class="text-weight-bold shadow-1 gt-xs"
+          @click="abrirEscanerQR"
+        />
+        <q-btn
+          unelevated
+          rounded
+          color="secondary"
+          text-color="primary"
+          icon="add_circle"
+          label="Entrada de Stock"
+          class="text-weight-bold gt-xs"
+          @click="abrirModalEntrada"
+        />
+        <q-btn
+          outline
+          rounded
+          color="primary"
+          icon="diamond"
+          label="Nueva Joya"
+          class="text-weight-bold gt-xs"
+          @click="abrirModalNuevoManual"
+        />
+        <q-btn
+          outline
+          rounded
+          color="primary"
+          icon="history"
+          label="Kardex"
+          class="text-weight-bold gt-xs"
+          @click="abrirKardexGeneral"
+        />
+        <q-btn-dropdown
+          flat
+          rounded
+          dense
+          color="primary"
+          icon="download"
+          label="Exportar"
+          class="text-weight-bold bg-grey-2 q-px-sm gt-xs"
+        >
+          <q-list>
+            <q-item clickable v-close-popup @click="exportarExcel">
+              <q-item-section avatar><q-icon name="table_chart" color="positive" /></q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">Descargar Excel (.xlsx)</q-item-label>
+                <q-item-label caption>Exportar joyas con stock y costos</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="imprimirInventario">
+              <q-item-section avatar><q-icon name="print" color="primary" /></q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">Imprimir Catálogo / PDF</q-item-label>
+                <q-item-label caption>Generar reporte imprimible</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
+
+        <!-- FAB móvil: solo visible en xs -->
+        <q-btn-dropdown
+          round
+          unelevated
+          color="primary"
+          icon="more_vert"
+          size="md"
+          class="lt-sm shadow-2"
+          dropdown-icon="none"
+          no-icon-animation
+          auto-close
+        >
+          <q-list style="min-width: 200px">
+            <q-item clickable @click="abrirEscanerQR">
+              <q-item-section avatar><q-icon name="qr_code_scanner" color="primary" /></q-item-section>
+              <q-item-section>Escanear QR</q-item-section>
+            </q-item>
+            <q-item clickable @click="abrirModalEntrada">
+              <q-item-section avatar><q-icon name="add_circle" color="secondary" /></q-item-section>
+              <q-item-section>Entrada de Stock</q-item-section>
+            </q-item>
+            <q-item clickable @click="abrirModalNuevoManual">
+              <q-item-section avatar><q-icon name="diamond" color="primary" /></q-item-section>
+              <q-item-section>Nueva Joya</q-item-section>
+            </q-item>
+            <q-item clickable @click="abrirKardexGeneral">
+              <q-item-section avatar><q-icon name="history" color="primary" /></q-item-section>
+              <q-item-section>Ver Kardex</q-item-section>
+            </q-item>
+            <q-item clickable @click="exportarExcel">
+              <q-item-section avatar><q-icon name="table_chart" color="positive" /></q-item-section>
+              <q-item-section>Exportar Excel</q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
+      </div>
+    </div>
+
+    <!-- Métricas rápidas -->
+    <div class="row q-col-gutter-sm q-mb-md animate-fade-up">
+      <div class="col-6 col-sm-3">
+        <div class="stat-card">
+          <div class="stat-card__label">Modelos</div>
+          <div class="stat-card__value text-primary">{{ productos.length }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="stat-card">
+          <div class="stat-card__label">Piezas en Stock</div>
+          <div class="stat-card__value text-positive">{{ totalPiezasStock }}</div>
         </div>
       </div>
     </div>
@@ -195,13 +221,13 @@
 
     <!-- Vista Cuadrícula (Grid) -->
     <div v-if="vistaModo === 'grid' && productosFiltrados.length > 0">
-      <div class="row q-col-gutter-sm">
+      <div class="row q-col-gutter-sm animate-stagger">
         <div
           v-for="prod in productosPaginadosGrid"
           :key="prod.id"
           class="col-12 col-sm-6 col-md-4 col-lg-3"
         >
-          <q-card flat class="rounded-borders shadow-1 bg-white column full-height overflow-hidden">
+          <q-card flat class="product-grid-card rounded-borders shadow-1 bg-white column full-height overflow-hidden touch-card">
             <div
               class="relative-position bg-grey-2 text-center q-pa-sm cursor-pointer overflow-hidden"
               style="height: 160px"
@@ -2086,5 +2112,20 @@ onBeforeUnmount(() => {
 .bg-dark-dimmed {
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
+}
+
+/* Tarjeta de producto en grid — hover sutil */
+.product-grid-card {
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+  cursor: pointer;
+}
+
+.product-grid-card:hover {
+  box-shadow: 0 6px 20px rgba(13, 27, 42, 0.11) !important;
+  transform: translateY(-2px);
+}
+
+.product-grid-card:active {
+  transform: scale(0.98);
 }
 </style>

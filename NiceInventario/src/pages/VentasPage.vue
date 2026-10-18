@@ -1,51 +1,50 @@
 <template>
   <q-page class="q-pa-md bg-grey-1">
-    <!-- Encabezado y Métricas de Ventas -->
-    <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12 col-md-6">
+    <!-- Encabezado de Ventas -->
+    <div class="page-header animate-fade-in">
+      <div class="page-header__title">
         <div class="text-h5 text-weight-bolder text-primary brand-font">
-          Historial de Ventas & Apartados
+          Historial de Ventas &amp; Apartados
         </div>
         <div class="text-caption text-grey-7">
           Consulta tickets generados en la tablet y gestiona abonos de clientes
         </div>
       </div>
 
-      <!-- Tarjetas de Resumen y Exportar -->
-      <div class="col-12 col-md-6">
-        <div class="row q-col-gutter-sm items-center">
-          <div class="col-3">
-            <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
-              <div class="text-caption text-grey-6">Ventas</div>
-              <div class="text-h6 text-weight-bolder text-primary">{{ ventas.length }}</div>
-            </q-card>
-          </div>
-          <div class="col-3">
-            <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
-              <div class="text-caption text-grey-6">Ingresos</div>
-              <div class="text-h6 text-weight-bolder text-positive">${{ formatPrecio(totalIngresos) }}</div>
-            </q-card>
-          </div>
-          <div class="col-3">
-            <q-card flat class="bg-white rounded-borders shadow-1 q-pa-sm text-center">
-              <div class="text-caption text-grey-6">Por Cobrar</div>
-              <div class="text-h6 text-weight-bolder text-warning">${{ formatPrecio(totalPorCobrar) }}</div>
-            </q-card>
-          </div>
-          <div class="col-3 text-center">
-            <q-btn
-              flat
-              rounded
-              dense
-              color="primary"
-              icon="download"
-              label="Excel"
-              class="full-width bg-white shadow-1 text-weight-bold q-py-xs"
-              @click="exportarExcelVentas"
-            >
-              <q-tooltip>Descargar reporte de ventas en Excel</q-tooltip>
-            </q-btn>
-          </div>
+      <div class="page-header__actions">
+        <q-btn
+          flat
+          rounded
+          dense
+          color="primary"
+          icon="download"
+          label="Exportar Excel"
+          class="bg-white shadow-1 text-weight-bold q-px-sm"
+          @click="exportarExcelVentas"
+        >
+          <q-tooltip>Descargar reporte de ventas en Excel</q-tooltip>
+        </q-btn>
+      </div>
+    </div>
+
+    <!-- Métricas rápidas -->
+    <div class="row q-col-gutter-sm q-mb-md animate-fade-up">
+      <div class="col-4">
+        <div class="stat-card">
+          <div class="stat-card__label">Ventas</div>
+          <div class="stat-card__value text-primary">{{ ventas.length }}</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-card">
+          <div class="stat-card__label">Ingresos</div>
+          <div class="stat-card__value text-positive" style="font-size: 1.05rem">${{ formatPrecio(totalIngresos) }}</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-card">
+          <div class="stat-card__label">Por cobrar</div>
+          <div class="stat-card__value text-warning" style="font-size: 1.05rem">${{ formatPrecio(totalPorCobrar) }}</div>
         </div>
       </div>
     </div>
@@ -87,7 +86,7 @@
     </q-card>
 
     <!-- Lista de Ventas en Tarjetas -->
-    <div v-if="ventasFiltradas.length > 0" class="row q-col-gutter-sm">
+    <div v-if="ventasFiltradas.length > 0" class="row q-col-gutter-sm animate-stagger">
       <div
         v-for="v in ventasFiltradas"
         :key="v.IdVenta"
@@ -197,10 +196,10 @@
     </div>
 
     <!-- Estado Vacío -->
-    <div v-else class="text-center q-pa-xl text-grey-6">
-      <q-icon name="receipt_long" size="64px" color="grey-4" />
-      <div class="text-h6 q-mt-sm">No se encontraron ventas</div>
-      <div class="text-caption">Las ventas que cobres en el POS aparecerán registradas aquí</div>
+    <div v-else class="empty-state">
+      <q-icon name="receipt_long" size="64px" color="grey-4" class="empty-state__icon" />
+      <div class="empty-state__title">Sin ventas registradas</div>
+      <div class="empty-state__desc">Las ventas que cobres en el POS aparecerán registradas aquí</div>
     </div>
 
     <!-- Modal: Detalle de Venta / Ticket -->

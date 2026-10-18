@@ -237,13 +237,13 @@
     </q-page-container>
 
     <!-- Barra de Navegación Inferior para Móviles (Galaxy S23 Ultra y smartphones) -->
-    <q-footer elevated class="bg-white lt-md border-top shadow-up-3 text-grey-8">
+    <q-footer elevated class="bg-white lt-md nav-footer-mobile shadow-up-3">
       <q-tabs
         no-caps
-        dense
+        :mobile-arrows="false"
         active-color="primary"
         indicator-color="transparent"
-        class="text-grey-7"
+        class="text-grey-6 nav-tabs-bottom"
         align="justify"
       >
         <q-route-tab
@@ -251,39 +251,39 @@
           exact
           icon="point_of_sale"
           label="POS"
-          class="q-px-none"
+          class="nav-tab-item"
         />
         <q-route-tab
           to="/inventario"
           icon="inventory_2"
-          label="Inventario"
-          class="q-px-none"
+          label="Catálogo"
+          class="nav-tab-item"
         />
         <q-route-tab
           to="/clientes"
           icon="people"
           label="Clientes"
-          class="q-px-none"
+          class="nav-tab-item"
         />
         <q-route-tab
           to="/ventas"
           icon="receipt_long"
           label="Ventas"
-          class="q-px-none"
+          class="nav-tab-item"
         />
         <q-route-tab
           v-if="authStore.esAdmin"
           to="/usuarios"
           icon="manage_accounts"
           label="Usuarios"
-          class="q-px-none"
+          class="nav-tab-item"
         />
         <q-route-tab
           v-else
           to="/sync"
           icon="cloud_sync"
           label="Sync"
-          class="q-px-none"
+          class="nav-tab-item"
         />
       </q-tabs>
     </q-footer>
@@ -366,5 +366,34 @@ onMounted(() => {
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* =============================================
+   Footer de navegación móvil mejorado
+   ============================================= */
+.nav-footer-mobile {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.nav-tabs-bottom {
+  min-height: 60px;
+}
+
+.nav-tab-item {
+  min-height: 60px;
+  padding: 6px 4px 4px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Icono más grande en el tab activo móvil */
+.nav-tab-item.q-router-link--active :deep(.q-icon) {
+  font-size: 24px;
+}
+
+.nav-tab-item :deep(.q-icon) {
+  font-size: 22px;
+  transition: font-size 0.15s ease;
 }
 </style>

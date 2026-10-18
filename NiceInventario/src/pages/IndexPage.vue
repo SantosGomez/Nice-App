@@ -57,7 +57,7 @@
 
         <!-- Cuadrícula de Productos -->
         <div v-if="productosFiltrados.length > 0">
-          <div class="row q-col-gutter-sm">
+          <div class="row q-col-gutter-sm animate-stagger">
             <div
               v-for="prod in productosPaginadosGrid"
               :key="prod.id"
@@ -152,12 +152,12 @@
           </div>
         </div>
 
-        <!-- Estado Vacío -->
-        <div v-else class="text-center q-pa-xl text-grey-6">
-          <q-icon name="inventory_2" size="64px" color="grey-4" />
-          <div class="text-h6 q-mt-sm">No se encontraron productos</div>
-          <div class="text-caption">
-            {{ filtroBusqueda ? 'Intenta con otro término de búsqueda' : 'Sincroniza el catálogo desde la nube con el botón superior' }}
+        <!-- Estado Vacío POS -->
+        <div v-else class="empty-state">
+          <q-icon name="inventory_2" size="64px" color="grey-4" class="empty-state__icon" />
+          <div class="empty-state__title">Sin productos en el catálogo</div>
+          <div class="empty-state__desc">
+            {{ filtroBusqueda ? 'Intenta con otro término de búsqueda' : 'Sincroniza el catálogo desde la nube con el botón de arriba' }}
           </div>
         </div>
       </div>
@@ -545,7 +545,7 @@
     <div
       v-if="posStore.carrito.length > 0 && !ticketVisible"
       class="lt-md fixed-bottom q-pa-sm z-top"
-      style="bottom: 56px;"
+      style="bottom: 60px;"
     >
       <q-card class="gradient-navy text-white shadow-6 rounded-borders-lg q-pa-sm gold-border">
         <div class="row items-center justify-between no-wrap">
@@ -769,17 +769,53 @@ async function crearYAsignarCliente() {
     return;
   }
 
-  const nuevo = {
+  const empId = Number(
+    empresariaStore.empresariaActiva?.IdEmpresaria ||
+    authStore.usuario?.IdEmpresaria ||
+    2
+  );
+  const nombreEmpresaria =
+    empresariaStore.empresarias.find((e) => e.IdEmpresaria === empId)?.Nombre || 'Empresaria Nice';
+
+  let nuevo = {
+    EmpresariaId: empId,
+    EmpresariaNombre: nombreEmpresaria,
     Nombre: nuevoCliente.value.Nombre.trim(),
     Telefono: nuevoCliente.value.Telefono?.trim() || null,
     localOnly: 1
   };
 
-  const id = await db.clientes.add(nuevo);
-  nuevo.IdCliente = id;
-  clientes.value.push(nuevo);
+  if (networkStore.isOnline) {
+    try {
+      const resp = await api.post('/clientes', {
+        Nombre: nuevo.Nombre,
+        Telefono: nuevo.Telefono,
+        EmpresariaId: empId
+      });
+      if (resp.data && resp.data.success && resp.data.data) {
+        nuevo = {
+          ...resp.data.data,
+          EmpresariaNombre: nombreEmpresaria,
+          localOnly: 0
+        };
+        await db.clientes.put(nuevo);
+      } else {
+        const id = await db.clientes.add(nuevo);
+        nuevo.IdCliente = id;
+      }
+    } catch {
+      const id = await db.clientes.add(nuevo);
+      nuevo.IdCliente = id;
+    }
+  } else {
+    const id = await db.clientes.add(nuevo);
+    nuevo.IdCliente = id;
+  }
+
+  clientes.value.unshift(nuevo);
   seleccionarCliente(nuevo);
   nuevoCliente.value = { Nombre: '', Telefono: '', Nota: '' };
+  $q.notify({ type: 'positive', message: `Cliente "${nuevo.Nombre}" registrado y asignado` });
 }
 
 async function confirmarCobro() {
@@ -1003,5 +1039,15 @@ onBeforeUnmount(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Tarjetas de producto en el POS */
+.touch-card {
+  transition: box-shadow 0.16s ease, transform 0.16s ease !important;
+}
+
+.touch-card:hover {
+  box-shadow: 0 6px 18px rgba(13, 27, 42, 0.12) !important;
+  transform: translateY(-2px);
 }
 </style>

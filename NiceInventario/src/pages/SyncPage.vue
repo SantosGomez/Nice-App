@@ -1,12 +1,14 @@
 <template>
   <q-page class="q-pa-md bg-grey-1">
     <!-- Encabezado -->
-    <div class="q-mb-md">
-      <div class="text-h5 text-weight-bolder text-primary brand-font">
-        Sincronización & Modo Offline
-      </div>
-      <div class="text-caption text-grey-7">
-        Gestiona la conexión con el servidor MySQL y revisa el almacenamiento en IndexedDB
+    <div class="page-header animate-fade-in q-mb-md">
+      <div class="page-header__title">
+        <div class="text-h5 text-weight-bolder text-primary brand-font">
+          Sincronización &amp; Modo Offline
+        </div>
+        <div class="text-caption text-grey-7">
+          Gestiona la conexión con el servidor MySQL y revisa el almacenamiento en IndexedDB
+        </div>
       </div>
     </div>
 
@@ -128,13 +130,13 @@
 
             <!-- Bitácora de Sincronización en Vivo -->
             <div class="text-subtitle2 text-weight-bold text-grey-8 q-mb-xs">
-              Bitácora de Eventos:
+              Bitácora de eventos
             </div>
-            <div class="bg-grey-9 text-grey-3 q-pa-sm rounded-borders overflow-auto" style="height: 140px; font-family: monospace; font-size: 0.75rem;">
-              <div v-for="(log, idx) in logs" :key="idx" class="q-py-none">
+            <div class="sync-log-box rounded-borders">
+              <div v-for="(log, idx) in logs" :key="idx" class="sync-log-entry">
                 {{ log }}
               </div>
-              <div v-if="logs.length === 0" class="text-grey-6 text-center q-pt-md">
+              <div v-if="logs.length === 0" class="sync-log-empty">
                 Sin eventos recientes
               </div>
             </div>
@@ -233,3 +235,38 @@ onMounted(async () => {
   await networkStore.updatePendingCount();
 });
 </script>
+
+<style scoped>
+/* Bitácora de sincronización — estilo terminal mejorado */
+.sync-log-box {
+  background: #0d1b2a;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  padding: 10px 12px;
+  height: 148px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.73rem;
+  line-height: 1.55;
+  scrollbar-width: thin;
+}
+
+.sync-log-entry {
+  color: #b4d1a6;
+  padding: 1px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sync-log-entry:first-child {
+  color: #d4af37;
+}
+
+.sync-log-empty {
+  color: rgba(255,255,255,0.3);
+  text-align: center;
+  padding-top: 40px;
+  font-style: italic;
+}
+</style>

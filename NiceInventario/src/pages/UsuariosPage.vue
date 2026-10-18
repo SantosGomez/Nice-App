@@ -1,8 +1,8 @@
 <template>
   <q-page class="q-pa-md bg-grey-1">
     <!-- Encabezado de la Vista -->
-    <div class="row items-center justify-between q-mb-md">
-      <div>
+    <div class="page-header animate-fade-in">
+      <div class="page-header__title">
         <div class="text-h5 text-weight-bolder text-primary brand-font">
           Control de Usuarios y Empresarias
         </div>
@@ -17,7 +17,7 @@
         color="primary"
         icon="person_add"
         label="Nuevo Usuario"
-        class="text-weight-bold shadow-2"
+        class="text-weight-bold shadow-2 touch-target-min"
         @click="abrirModalNuevo"
       />
     </div>
@@ -90,7 +90,7 @@
     </q-card>
 
     <!-- Lista de Usuarios en Tarjetas Adaptables -->
-    <div v-if="usuariosFiltrados.length > 0" class="row q-col-gutter-md">
+    <div v-if="usuariosFiltrados.length > 0" class="row q-col-gutter-md animate-stagger">
       <div
         v-for="u in usuariosFiltrados"
         :key="u.IdEmpresaria"
