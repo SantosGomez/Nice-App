@@ -163,6 +163,60 @@ export const ClienteController = {
         error: error.message
       });
     }
+  },
+
+  /**
+   * GET /api/clientes/:id/historial
+   * Obtiene el Kardex / historial comercial completo de un cliente.
+   */
+  async getHistorialCliente(req, res) {
+    try {
+      const { id } = req.params;
+      const historial = await ClienteModel.getHistorial(id);
+
+      if (!historial) {
+        return res.status(404).json({
+          success: false,
+          message: `Cliente con ID '${id}' no encontrado`
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: historial
+      });
+    } catch (error) {
+      console.error('Error en getHistorialCliente:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al obtener el historial del cliente',
+        error: error.message
+      });
+    }
+  },
+
+  /**
+   * GET /api/clientes/historial/general
+   * Obtiene el registro cronológico global de ventas de todos los clientes.
+   */
+  async getHistorialGeneral(req, res) {
+    try {
+      const { empresariaId, limit } = req.query;
+      const ventas = await ClienteModel.getHistorialGeneral({ empresariaId, limit });
+
+      return res.status(200).json({
+        success: true,
+        count: ventas.length,
+        data: ventas
+      });
+    } catch (error) {
+      console.error('Error en getHistorialGeneral:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al obtener el historial general de clientes',
+        error: error.message
+      });
+    }
   }
 };
 

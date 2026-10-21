@@ -11,15 +11,43 @@
         </div>
       </div>
 
-      <q-btn
-        unelevated
-        rounded
-        color="primary"
-        icon="person_add"
-        label="Nuevo Cliente"
-        class="text-weight-bold shadow-1 touch-target-min"
-        @click="abrirModalNuevo"
-      />
+      <div class="page-header__actions">
+        <!-- Historial General (Kardex global) -->
+        <q-btn
+          outline
+          rounded
+          color="primary"
+          icon="history"
+          label="Historial General"
+          class="text-weight-bold shadow-1 touch-target-min gt-xs bg-white"
+          @click="abrirHistorialGeneral"
+        >
+          <q-tooltip>Ver registro global de compras y abonos de clientes</q-tooltip>
+        </q-btn>
+
+        <!-- Botón Historial para móvil (icono compacto) -->
+        <q-btn
+          flat
+          round
+          dense
+          color="primary"
+          icon="history"
+          class="lt-sm shadow-1 bg-white"
+          @click="abrirHistorialGeneral"
+        >
+          <q-tooltip>Historial general</q-tooltip>
+        </q-btn>
+
+        <q-btn
+          unelevated
+          rounded
+          color="primary"
+          icon="person_add"
+          label="Nuevo Cliente"
+          class="text-weight-bold shadow-1 touch-target-min"
+          @click="abrirModalNuevo"
+        />
+      </div>
     </div>
 
     <!-- Buscador y Filtro por Empresaria (si es Admin) -->
@@ -135,7 +163,11 @@
               <!-- Menú de Acciones -->
               <q-btn flat round dense icon="more_vert" color="grey-7" class="shrink-0">
                 <q-menu auto-close>
-                  <q-list style="min-width: 140px;">
+                  <q-list style="min-width: 160px;">
+                    <q-item clickable @click="abrirKardexCliente(c)">
+                      <q-item-section avatar><q-icon name="history" color="primary" size="20px" /></q-item-section>
+                      <q-item-section class="text-weight-medium">Ver Kardex</q-item-section>
+                    </q-item>
                     <q-item clickable @click="editarCliente(c)">
                       <q-item-section avatar><q-icon name="edit" size="20px" /></q-item-section>
                       <q-item-section>Editar</q-item-section>
@@ -170,7 +202,20 @@
           </q-card-section>
 
           <!-- Acciones Rápidas en Footer -->
-          <q-card-actions class="q-px-md q-pb-md q-pt-none row q-gutter-xs">
+          <q-card-actions class="q-px-md q-pb-md q-pt-none row q-gutter-xs items-center">
+            <!-- Botón de acceso directo a Kardex del cliente -->
+            <q-btn
+              flat
+              round
+              dense
+              color="primary"
+              icon="history"
+              class="shrink-0 bg-grey-1"
+              @click="abrirKardexCliente(c)"
+            >
+              <q-tooltip>Historial / Kardex de la clienta</q-tooltip>
+            </q-btn>
+
             <q-btn
               v-if="c.Telefono"
               outline
@@ -316,6 +361,196 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo: Kardex / Historial del Cliente -->
+    <q-dialog v-model="mostrarModalKardex" :maximized="$q.screen.xs">
+      <q-card style="width: 100%; max-width: 820px; border-radius: 16px;" class="column overflow-hidden">
+        <!-- Cabecera Navy con Acentos Dorados -->
+        <q-card-section class="gradient-navy text-white row items-center justify-between q-py-sm shrink-0">
+          <div class="row items-center q-gutter-x-sm no-wrap" style="min-width: 0;">
+            <q-avatar size="42px" color="secondary" text-color="primary" icon="history" class="shadow-2 shrink-0" />
+            <div style="min-width: 0;">
+              <div class="text-subtitle1 text-weight-bold text-gold brand-font ellipsis">
+                {{ kardexClienteSeleccionado ? `Kardex: ${kardexClienteSeleccionado.Nombre}` : 'Historial General de Clientes' }}
+              </div>
+              <div v-if="kardexClienteSeleccionado" class="text-caption text-grey-3 ellipsis">
+                {{ kardexClienteSeleccionado.Telefono || 'Sin teléfono' }} • Distribuidora: {{ kardexClienteSeleccionado.EmpresariaNombre || 'Nice' }}
+              </div>
+              <div v-else class="text-caption text-grey-3">
+                Registro cronológico de compras, apartados y abonos
+              </div>
+            </div>
+          </div>
+
+          <div class="row items-center q-gutter-x-xs no-wrap shrink-0">
+            <!-- Compartir WhatsApp estado de cuenta -->
+            <q-btn
+              v-if="kardexClienteSeleccionado && kardexClienteSeleccionado.Telefono"
+              flat
+              round
+              dense
+              color="positive"
+              icon="chat"
+              class="bg-white-10"
+              @click="compartirEstadoCuentaWhatsApp(kardexClienteSeleccionado, kardexMetricas)"
+            >
+              <q-tooltip>Compartir estado de cuenta por WhatsApp</q-tooltip>
+            </q-btn>
+
+            <q-btn
+              flat
+              round
+              dense
+              icon="refresh"
+              color="amber-4"
+              :loading="cargandoKardex"
+              @click="recargarKardexActual"
+            >
+              <q-tooltip>Actualizar historial</q-tooltip>
+            </q-btn>
+
+            <q-btn icon="close" flat round dense v-close-popup />
+          </div>
+        </q-card-section>
+
+        <!-- Métricas Rápidas Comerciales (si es cliente individual) -->
+        <q-card-section v-if="kardexClienteSeleccionado" class="bg-grey-1 q-pa-sm border-bottom shrink-0">
+          <div class="row q-col-gutter-xs">
+            <div class="col-4">
+              <div class="stat-card q-pa-xs">
+                <div class="stat-card__label">Total Comprado</div>
+                <div class="stat-card__value text-primary" style="font-size: 1.05rem;">
+                  ${{ formatPrecio(kardexMetricas.totalComprado) }}
+                </div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="stat-card q-pa-xs">
+                <div class="stat-card__label">Total Abonado</div>
+                <div class="stat-card__value text-positive" style="font-size: 1.05rem;">
+                  ${{ formatPrecio(kardexMetricas.totalAbonado) }}
+                </div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="stat-card q-pa-xs">
+                <div class="stat-card__label">Saldo Pendiente</div>
+                <div
+                  class="stat-card__value"
+                  :class="kardexMetricas.saldoPendiente > 0 ? 'text-warning' : 'text-grey-6'"
+                  style="font-size: 1.05rem;"
+                >
+                  ${{ formatPrecio(kardexMetricas.saldoPendiente) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+
+        <!-- Pestañas de Filtro del Kardex -->
+        <q-card-section class="q-py-xs bg-grey-2 border-bottom shrink-0">
+          <q-tabs
+            v-model="filtroTipoTimeline"
+            dense
+            no-caps
+            align="left"
+            active-color="primary"
+            indicator-color="secondary"
+            class="text-grey-7"
+          >
+            <q-tab name="TODOS" label="Todos" icon="list" />
+            <q-tab name="VENTAS" label="Compras / Apartados" icon="shopping_bag" />
+            <q-tab name="ABONOS" label="Abonos Recibidos" icon="payments" />
+          </q-tabs>
+        </q-card-section>
+
+        <!-- Lista del Timeline / Historial -->
+        <q-card-section class="col q-pa-sm overflow-auto" style="max-height: 55vh;">
+          <div v-if="cargandoKardex" class="q-pa-lg text-center">
+            <q-spinner-dots color="primary" size="40px" />
+            <div class="text-caption text-grey-6 q-mt-sm">Cargando trazabilidad comercial...</div>
+          </div>
+
+          <div v-else-if="timelineFiltrado.length === 0" class="empty-state q-pa-lg">
+            <q-icon name="history_toggle_off" size="56px" color="grey-4" class="empty-state__icon" />
+            <div class="empty-state__title">Sin movimientos registrados</div>
+            <div class="empty-state__desc">
+              {{ kardexClienteSeleccionado ? 'Esta clienta aún no tiene compras o abonos registrados.' : 'No se encontraron registros de ventas ni abonos.' }}
+            </div>
+          </div>
+
+          <q-list v-else separator class="rounded-borders bg-white shadow-1">
+            <q-item
+              v-for="item in timelineFiltrado"
+              :key="item.id"
+              class="q-py-sm"
+            >
+              <!-- Icono y color según el tipo de evento -->
+              <q-item-section avatar>
+                <q-avatar
+                  size="38px"
+                  :color="getColorEvento(item.tipo)"
+                  text-color="white"
+                  :icon="getIconoEvento(item.tipo)"
+                  class="shadow-1"
+                />
+              </q-item-section>
+
+              <!-- Información del evento -->
+              <q-item-section>
+                <div class="row items-center justify-between no-wrap">
+                  <div class="text-weight-bold text-primary">
+                    {{ item.titulo }}
+                  </div>
+                  <div
+                    v-if="item.monto !== null"
+                    class="text-weight-bolder text-subtitle2"
+                    :class="getColorMonto(item.tipo)"
+                  >
+                    {{ getSignoMonto(item.tipo) }}${{ formatPrecio(item.monto) }}
+                  </div>
+                </div>
+
+                <div class="text-caption text-grey-8 q-mt-xs">
+                  <span v-if="!kardexClienteSeleccionado && item.clienteNombre" class="text-weight-bold text-primary">
+                    {{ item.clienteNombre }} &bull;
+                  </span>
+                  {{ item.descripcion }}
+                </div>
+
+                <div class="row items-center q-gutter-x-sm text-caption text-grey-6 q-mt-xs">
+                  <span>{{ formatFechaHora(item.fecha) }}</span>
+                  <span v-if="item.metodo">&bull; Método: <strong>{{ item.metodo }}</strong></span>
+                  <span v-if="item.saldoPendiente !== undefined && item.saldoPendiente > 0" class="text-warning text-weight-bold">
+                    &bull; Saldo pendiente: ${{ formatPrecio(item.saldoPendiente) }}
+                  </span>
+                </div>
+              </q-item-section>
+
+              <!-- Folio del ticket -->
+              <q-item-section v-if="item.folio" side top>
+                <q-badge color="grey-3" text-color="primary" class="font-mono text-weight-bold">
+                  #{{ item.folio.substring(0, 8) }}
+                </q-badge>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <!-- Footer / Acciones Rápidas -->
+        <q-card-actions v-if="kardexClienteSeleccionado" align="right" class="q-pa-sm bg-grey-1 border-top shrink-0">
+          <q-btn
+            unelevated
+            dense
+            color="primary"
+            icon="point_of_sale"
+            label="Cobrar en POS"
+            class="text-weight-bold q-px-md"
+            @click="iniciarVentaParaCliente(kardexClienteSeleccionado)"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -344,6 +579,21 @@ const letraSeleccionada = ref('TODOS');
 const mostrarModal = ref(false);
 const editando = ref(false);
 const guardando = ref(false);
+
+// Estado de Kardex / Historial
+const mostrarModalKardex = ref(false);
+const kardexClienteSeleccionado = ref(null);
+const cargandoKardex = ref(false);
+const filtroTipoTimeline = ref('TODOS');
+const kardexTimeline = ref([]);
+const kardexMetricas = ref({
+  totalComprado: 0,
+  totalAbonado: 0,
+  saldoPendiente: 0,
+  totalPiezas: 0,
+  totalVentas: 0,
+  apartadosActivos: 0
+});
 
 const abecedario = [
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
@@ -374,16 +624,12 @@ const opcionesEmpresariasModal = computed(() => {
   }));
 });
 
-/**
- * Normaliza la primera letra del nombre eliminando tildes y diacríticos.
- */
 function obtenerPrimeraLetra(nombre) {
   if (!nombre || typeof nombre !== 'string') return '#';
   const trimmed = nombre.trim();
   if (trimmed.length === 0) return '#';
   const primera = trimmed.charAt(0).toUpperCase();
   if (primera === 'Ñ') return 'Ñ';
-  // Quitar tildes para agrupar A-Z estándar
   const normalizada = primera.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (/^[A-Z]$/.test(normalizada)) {
     return normalizada;
@@ -399,9 +645,6 @@ function seleccionarLetra(letra) {
   }
 }
 
-/**
- * Clientes filtrados por empresaria (base antes de letra y búsqueda de texto).
- */
 const clientesBase = computed(() => {
   let list = clientes.value;
 
@@ -417,9 +660,6 @@ const clientesBase = computed(() => {
   return list;
 });
 
-/**
- * Mapa de conteo de clientes por letra en la lista base actual.
- */
 const conteosPorLetra = computed(() => {
   const conteos = {};
   for (const c of clientesBase.value) {
@@ -429,18 +669,13 @@ const conteosPorLetra = computed(() => {
   return conteos;
 });
 
-/**
- * Clientes finales filtrados por letra del abecedario y búsqueda libre.
- */
 const clientesFiltrados = computed(() => {
   let list = clientesBase.value;
 
-  // Filtro alfabético
   if (letraSeleccionada.value && letraSeleccionada.value !== 'TODOS') {
     list = list.filter((c) => obtenerPrimeraLetra(c.Nombre) === letraSeleccionada.value);
   }
 
-  // Filtro por búsqueda de texto
   if (busqueda.value && busqueda.value.trim() !== '') {
     const q = busqueda.value.toLowerCase().trim();
     list = list.filter(
@@ -451,13 +686,25 @@ const clientesFiltrados = computed(() => {
   return list;
 });
 
+const timelineFiltrado = computed(() => {
+  if (filtroTipoTimeline.value === 'TODOS') {
+    return kardexTimeline.value;
+  }
+  if (filtroTipoTimeline.value === 'VENTAS') {
+    return kardexTimeline.value.filter((it) => it.tipo === 'VENTA' || it.tipo === 'APARTADO');
+  }
+  if (filtroTipoTimeline.value === 'ABONOS') {
+    return kardexTimeline.value.filter((it) => it.tipo === 'ABONO');
+  }
+  return kardexTimeline.value;
+});
+
 async function cargarClientes() {
   try {
     if (networkStore.isOnline) {
       try {
         const resp = await api.get('/clientes');
         if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
-          // Guardar clientes del servidor en Dexie sin perder flags locales
           for (const c of resp.data.data) {
             await db.clientes.put({
               ...c,
@@ -470,7 +717,6 @@ async function cargarClientes() {
       }
     }
 
-    // Leemos de Dexie todos los clientes (tanto los sincronizados como los locales pendientes)
     const todos = await db.clientes.toArray();
     todos.sort((a, b) => (a.Nombre || '').localeCompare(b.Nombre || '', 'es', { sensitivity: 'base' }));
     clientes.value = todos;
@@ -565,7 +811,6 @@ async function guardarCliente() {
     } else {
       let nuevoCliente = null;
 
-      // 1. Si hay red, registrar en el backend con await para obtener el IdCliente oficial
       if (networkStore.isOnline) {
         try {
           const resp = await api.post('/clientes', {
@@ -581,7 +826,6 @@ async function guardarCliente() {
               EmpresariaNombre: nombreEmpresaria,
               localOnly: 0
             };
-            // Guardar en Dexie con el ID real
             await db.clientes.put(nuevoCliente);
           }
         } catch (apiErr) {
@@ -589,7 +833,6 @@ async function guardarCliente() {
         }
       }
 
-      // 2. Si no se pudo guardar en backend (offline o error), guardar en Dexie como localOnly
       if (!nuevoCliente) {
         const nuevoLocal = {
           EmpresariaId: empId,
@@ -604,16 +847,12 @@ async function guardarCliente() {
         nuevoCliente = nuevoLocal;
       }
 
-      // 3. Garantizar que el cliente nuevo sea visible de inmediato:
-      // Limpiar texto de búsqueda que podría ocultarlo
       busqueda.value = '';
 
-      // Si el filtro de empresaria activo no coincide con la del nuevo cliente, quitar el filtro
       if (filtroEmpresaria.value && Number(filtroEmpresaria.value) !== empId) {
         filtroEmpresaria.value = null;
       }
 
-      // Si hay un filtro por letra que no corresponde a la inicial del nuevo cliente, restablecer a TODOS
       const letraNuevo = obtenerPrimeraLetra(nuevoCliente.Nombre);
       if (letraSeleccionada.value !== 'TODOS' && letraSeleccionada.value !== letraNuevo) {
         letraSeleccionada.value = 'TODOS';
@@ -664,7 +903,256 @@ function abrirWhatsApp(tel) {
 function iniciarVentaParaCliente(c) {
   posStore.clienteSeleccionado = c;
   $q.notify({ type: 'positive', message: `Cliente "${c.Nombre}" asignado para cobro` });
+  if (mostrarModalKardex.value) {
+    mostrarModalKardex.value = false;
+  }
   router.push('/');
+}
+
+// =========================================================================
+// FUNCIONES DE KARDEX / HISTORIAL DE CLIENTES (OFFLINE-FIRST)
+// =========================================================================
+
+async function abrirKardexCliente(c) {
+  kardexClienteSeleccionado.value = c;
+  filtroTipoTimeline.value = 'TODOS';
+  mostrarModalKardex.value = true;
+  await cargarHistorialCliente(c);
+}
+
+async function abrirHistorialGeneral() {
+  kardexClienteSeleccionado.value = null;
+  filtroTipoTimeline.value = 'TODOS';
+  mostrarModalKardex.value = true;
+  await cargarHistorialGeneral();
+}
+
+async function recargarKardexActual() {
+  if (kardexClienteSeleccionado.value) {
+    await cargarHistorialCliente(kardexClienteSeleccionado.value);
+  } else {
+    await cargarHistorialGeneral();
+  }
+}
+
+async function cargarHistorialCliente(c) {
+  cargandoKardex.value = true;
+  try {
+    // 1. Intentar consultar datos oficiales en línea si hay conexión
+    if (networkStore.isOnline) {
+      try {
+        const resp = await api.get(`/clientes/${c.IdCliente}/historial`);
+        if (resp.data && resp.data.success && resp.data.data) {
+          kardexMetricas.value = resp.data.data.metricas;
+          kardexTimeline.value = resp.data.data.timeline;
+          cargandoKardex.value = false;
+          return;
+        }
+      } catch (errApi) {
+        console.warn('Fallo consulta online de historial, recurriendo a Dexie local:', errApi.message);
+      }
+    }
+
+    // 2. Fallback Offline-First: Construir historial local a partir de Dexie
+    const ventas = await db.ventas.where('Cliente_Id').equals(c.IdCliente).toArray();
+    const ventaIds = ventas.map((v) => v.IdVenta);
+    const pagos = await db.pagos.where('VentaId').anyOf(ventaIds).toArray();
+
+    let totalComprado = 0;
+    let totalAbonado = 0;
+    let apartadosActivos = 0;
+    const timeline = [];
+
+    // Agregar evento de registro
+    timeline.push({
+      id: `reg-${c.IdCliente}`,
+      tipo: 'REGISTRO',
+      titulo: 'Registro de Clienta',
+      descripcion: `Registrada con ${c.EmpresariaNombre || 'Distribuidora Nice'}`,
+      fecha: c.created_at || new Date().toISOString(),
+      folio: null,
+      monto: null
+    });
+
+    for (const v of ventas) {
+      const vTotal = Number(v.total) || 0;
+      totalComprado += vTotal;
+
+      const pagosDeVenta = pagos.filter((p) => p.VentaId === v.IdVenta);
+      const pagadoDeVenta = pagosDeVenta.reduce((acc, p) => acc + (Number(p.Cantidad) || 0), 0);
+      totalAbonado += pagadoDeVenta;
+
+      const saldoVenta = Math.max(0, vTotal - pagadoDeVenta);
+      if (v.TipoVenta === 'APARTADO' && saldoVenta > 0) {
+        apartadosActivos++;
+      }
+
+      timeline.push({
+        id: `v-${v.IdVenta}`,
+        tipo: v.TipoVenta === 'APARTADO' ? 'APARTADO' : 'VENTA',
+        titulo: v.TipoVenta === 'APARTADO' ? 'Apartado de Joyería' : 'Compra Directa en POS',
+        descripcion: `Ticket de venta (${v.TipoVenta}) - ${v.Estado || 'Completada'}`,
+        fecha: v.created_at || new Date().toISOString(),
+        folio: v.IdVenta,
+        monto: vTotal,
+        saldoPendiente: saldoVenta
+      });
+
+      for (const p of pagosDeVenta) {
+        timeline.push({
+          id: `p-${p.IdPago || p.id || Math.random()}`,
+          tipo: 'ABONO',
+          titulo: 'Abono Registrado',
+          descripcion: `Pago vía ${p.Metodo_Pago || 'Efectivo'} a ticket #${v.IdVenta.substring(0, 8)}`,
+          fecha: p.created_at || new Date().toISOString(),
+          folio: v.IdVenta,
+          monto: Number(p.Cantidad),
+          metodo: p.Metodo_Pago || 'Efectivo',
+          saldoRestante: saldoVenta
+        });
+      }
+    }
+
+    timeline.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    kardexMetricas.value = {
+      totalComprado,
+      totalAbonado,
+      saldoPendiente: Math.max(0, totalComprado - totalAbonado),
+      totalPiezas: 0,
+      totalVentas: ventas.length,
+      apartadosActivos
+    };
+    kardexTimeline.value = timeline;
+  } catch (err) {
+    console.error('Error cargando historial de clienta:', err);
+    $q.notify({ type: 'negative', message: 'Error cargando historial: ' + err.message });
+  } finally {
+    cargandoKardex.value = false;
+  }
+}
+
+async function cargarHistorialGeneral() {
+  cargandoKardex.value = true;
+  try {
+    if (networkStore.isOnline) {
+      try {
+        const resp = await api.get('/clientes/historial/general');
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          kardexTimeline.value = resp.data.data.map((v) => ({
+            id: `v-${v.IdVenta}`,
+            tipo: v.TipoVenta === 'APARTADO' ? 'APARTADO' : 'VENTA',
+            titulo: v.TipoVenta === 'APARTADO' ? 'Apartado' : 'Venta POS',
+            clienteNombre: v.ClienteNombre,
+            descripcion: `Ticket #${v.IdVenta.substring(0, 8)} • ${v.TipoVenta} (${v.Estado || 'Completada'})`,
+            fecha: v.created_at,
+            folio: v.IdVenta,
+            monto: Number(v.total),
+            saldoPendiente: Number(v.SaldoPendiente || 0)
+          }));
+          cargandoKardex.value = false;
+          return;
+        }
+      } catch (err) {
+        console.warn('Fallback local para historial general:', err.message);
+      }
+    }
+
+    // Fallback Dexie local
+    const ventas = await db.ventas.toArray();
+    const clientesMap = new Map((await db.clientes.toArray()).map((c) => [c.IdCliente, c.Nombre]));
+
+    kardexTimeline.value = ventas.map((v) => ({
+      id: `v-${v.IdVenta}`,
+      tipo: v.TipoVenta === 'APARTADO' ? 'APARTADO' : 'VENTA',
+      titulo: v.TipoVenta === 'APARTADO' ? 'Apartado' : 'Venta POS',
+      clienteNombre: clientesMap.get(v.Cliente_Id) || 'Venta Mostrador',
+      descripcion: `Ticket #${v.IdVenta.substring(0, 8)} (${v.TipoVenta})`,
+      fecha: v.created_at || new Date().toISOString(),
+      folio: v.IdVenta,
+      monto: Number(v.total) || 0
+    })).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  } catch (err) {
+    console.error('Error al cargar historial general:', err);
+  } finally {
+    cargandoKardex.value = false;
+  }
+}
+
+function compartirEstadoCuentaWhatsApp(cliente, metricas) {
+  if (!cliente || !cliente.Telefono) {
+    $q.notify({ type: 'warning', message: 'El cliente no tiene teléfono registrado' });
+    return;
+  }
+
+  const telLimpio = cliente.Telefono.replace(/\D/g, '');
+  const mensaje =
+    `*Hola ${cliente.Nombre} 👋✨*\n` +
+    `Te compartimos tu estado de cuenta de *Joyería Nice & Bella*:\n\n` +
+    `🛍️ *Total Comprado:* $${formatPrecio(metricas.totalComprado)}\n` +
+    `💵 *Abonos Realizados:* $${formatPrecio(metricas.totalAbonado)}\n` +
+    `⭐ *Saldo Pendiente:* $${formatPrecio(metricas.saldoPendiente)}\n` +
+    (metricas.apartadosActivos > 0 ? `📦 *Apartados Activos:* ${metricas.apartadosActivos}\n` : '') +
+    `\n¡Agradecemos mucho tu preferencia! 💎`;
+
+  window.open(`https://wa.me/52${telLimpio}?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+function formatPrecio(val) {
+  if (val === null || val === undefined || isNaN(val)) return '0.00';
+  return Number(val).toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatFechaHora(fecha) {
+  if (!fecha) return '';
+  return new Date(fecha).toLocaleString('es-MX', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+}
+
+function getColorEvento(tipo) {
+  switch (tipo) {
+    case 'VENTA':
+      return 'primary';
+    case 'APARTADO':
+      return 'warning';
+    case 'ABONO':
+      return 'positive';
+    case 'REGISTRO':
+      return 'secondary';
+    default:
+      return 'grey-7';
+  }
+}
+
+function getIconoEvento(tipo) {
+  switch (tipo) {
+    case 'VENTA':
+      return 'shopping_bag';
+    case 'APARTADO':
+      return 'bookmark';
+    case 'ABONO':
+      return 'payments';
+    case 'REGISTRO':
+      return 'how_to_reg';
+    default:
+      return 'receipt';
+  }
+}
+
+function getColorMonto(tipo) {
+  if (tipo === 'ABONO') return 'text-positive';
+  if (tipo === 'APARTADO') return 'text-warning';
+  return 'text-primary';
+}
+
+function getSignoMonto(tipo) {
+  if (tipo === 'ABONO') return '+';
+  return '';
 }
 
 onMounted(() => {
@@ -681,7 +1169,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Directorio de Abecedario */
 .directory-bar-card {
   border-radius: 14px;
 }
@@ -772,5 +1259,9 @@ onMounted(() => {
 .directory-letter-pill--active .letter-count {
   background: #ffffff;
   color: #0d1b2a;
+}
+
+.bg-white-10 {
+  background: rgba(255, 255, 255, 0.12);
 }
 </style>

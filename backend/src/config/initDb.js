@@ -21,6 +21,17 @@ export async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
 
+    // Asegurar columna created_at en clientes
+    try {
+      const [col] = await connection.query(`SHOW COLUMNS FROM clientes LIKE 'created_at'`);
+      if (col.length === 0) {
+        await connection.query(`ALTER TABLE clientes ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+        console.log(`⚡ [Database] Columna 'created_at' agregada a tabla 'clientes'`);
+      }
+    } catch (e) {
+      // Ignorar si ya existe
+    }
+
     // 2. Helper seguro para crear índices si no existen
     const crearIndiceSiNoExiste = async (tabla, nombreIndice, columnas) => {
       try {
