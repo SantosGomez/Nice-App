@@ -860,7 +860,8 @@ async function guardarCliente() {
           Nombre: f.Nombre.trim(),
           Telefono: f.Telefono ? f.Telefono.trim() : null,
           Nota: f.Nota ? f.Nota.trim() : null,
-          localOnly: 1
+          localOnly: 1,
+          created_at: new Date().toISOString()
         };
         const newId = await db.clientes.add(nuevoLocal);
         nuevoLocal.IdCliente = newId;

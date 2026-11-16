@@ -852,7 +852,8 @@ async function crearYAsignarCliente() {
     EmpresariaNombre: nombreEmpresaria,
     Nombre: nuevoCliente.value.Nombre.trim(),
     Telefono: nuevoCliente.value.Telefono?.trim() || null,
-    localOnly: 1
+    localOnly: 1,
+    created_at: new Date().toISOString()
   };
 
   if (networkStore.isOnline) {

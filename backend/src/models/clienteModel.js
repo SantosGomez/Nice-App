@@ -19,7 +19,8 @@ export const ClienteModel = {
         COALESCE(e.Nombre, 'Sin asignar') AS EmpresariaNombre,
         c.Nombre,
         c.Telefono,
-        c.Nota
+        c.Nota,
+        c.created_at
       FROM clientes c
       LEFT JOIN empresarias e ON c.EmpresariaId = e.IdEmpresaria
       WHERE 1 = 1
@@ -54,7 +55,8 @@ export const ClienteModel = {
         COALESCE(e.Nombre, 'Sin asignar') AS EmpresariaNombre,
         c.Nombre,
         c.Telefono,
-        c.Nota
+        c.Nota,
+        c.created_at
       FROM clientes c
       LEFT JOIN empresarias e ON c.EmpresariaId = e.IdEmpresaria
       WHERE c.IdCliente = ?
@@ -73,12 +75,14 @@ export const ClienteModel = {
     `;
     const empId = EmpresariaId ? Number(EmpresariaId) : null;
     const [result] = await pool.query(sql, [empId, Nombre, Telefono, Nota]);
-    return {
+    const nuevo = await this.getById(result.insertId);
+    return nuevo || {
       IdCliente: result.insertId,
       EmpresariaId: empId,
       Nombre,
       Telefono,
-      Nota
+      Nota,
+      created_at: new Date().toISOString()
     };
   },
 
@@ -124,7 +128,7 @@ export const ClienteModel = {
       SELECT 
         v.IdVenta,
         v.EmpresariaId,
-        COALESCE(e.Nombre, 'Distribuidora Nice') AS EmpresariaNombre,
+        COALESCE(MAX(e.Nombre), 'Distribuidora Nice') AS EmpresariaNombre,
         v.TipoVenta,
         v.Estado,
         v.total,
@@ -135,7 +139,7 @@ export const ClienteModel = {
       LEFT JOIN empresarias e ON v.EmpresariaId = e.IdEmpresaria
       LEFT JOIN pagos p ON v.IdVenta = p.VentaId
       WHERE v.Cliente_Id = ?
-      GROUP BY v.IdVenta
+      GROUP BY v.IdVenta, v.EmpresariaId, v.TipoVenta, v.Estado, v.total, v.created_at
       ORDER BY v.created_at DESC
       `,
       [clienteId]

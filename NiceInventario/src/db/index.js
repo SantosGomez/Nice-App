@@ -38,6 +38,10 @@ db.version(2).stores({
   clientes: '++IdCliente, EmpresariaId, Nombre, Telefono, localOnly'
 });
 
+db.version(3).stores({
+  clientes: '++IdCliente, EmpresariaId, Nombre, Telefono, localOnly, created_at'
+});
+
 /**
  * Helper para registrar una venta offline de forma atómica en Dexie.
  * Actualiza ventas, partidas, pagos, descuenta el stock local y encola para sincronizar.
