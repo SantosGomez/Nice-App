@@ -653,7 +653,7 @@ const clientesBase = computed(() => {
   } else if (!authStore.esAdmin) {
     const miEmpId = empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria;
     if (miEmpId) {
-      list = list.filter((c) => !c.EmpresariaId || Number(c.EmpresariaId) === Number(miEmpId));
+      list = list.filter((c) => Number(c.EmpresariaId) === Number(miEmpId));
     }
   }
 
@@ -809,6 +809,26 @@ async function guardarCliente() {
       }
       $q.notify({ type: 'positive', message: 'Cliente actualizado' });
     } else {
+      // Verificación preventiva de duplicados en este directorio
+      const nombreLimpio = f.Nombre.trim().toLowerCase();
+      const telLimpio = f.Telefono ? f.Telefono.trim() : null;
+      const duplicado = clientes.value.find(
+        (c) =>
+          Number(c.EmpresariaId) === empId &&
+          c.Nombre?.trim().toLowerCase() === nombreLimpio &&
+          (!telLimpio || !c.Telefono || c.Telefono.trim() === telLimpio)
+      );
+
+      if (duplicado) {
+        $q.notify({
+          type: 'warning',
+          icon: 'warning',
+          message: `Ya existe un cliente registrado como "${duplicado.Nombre}" para esta distribuidora.`
+        });
+        guardando.value = false;
+        return;
+      }
+
       let nuevoCliente = null;
 
       if (networkStore.isOnline) {

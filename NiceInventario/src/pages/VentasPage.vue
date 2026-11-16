@@ -32,7 +32,7 @@
       <div class="col-4">
         <div class="stat-card">
           <div class="stat-card__label">Ventas</div>
-          <div class="stat-card__value text-primary">{{ ventas.length }}</div>
+          <div class="stat-card__value text-primary">{{ ventasFiltradas.length }}</div>
         </div>
       </div>
       <div class="col-4">
@@ -88,7 +88,7 @@
     <!-- Lista de Ventas en Tarjetas -->
     <div v-if="ventasFiltradas.length > 0" class="row q-col-gutter-sm animate-stagger">
       <div
-        v-for="v in ventasFiltradas"
+        v-for="v in ventasPaginadas"
         :key="v.IdVenta"
         class="col-12 col-sm-6 col-lg-4"
       >
@@ -193,6 +193,36 @@
           </q-card-actions>
         </q-card>
       </div>
+
+      <!-- Barra de Paginación de Ventas -->
+      <div class="col-12 row items-center justify-between q-mt-md q-pa-sm bg-white rounded-borders shadow-1 wrap q-gutter-y-sm">
+        <div class="text-caption text-grey-7 row items-center q-gutter-x-sm">
+          <span>
+            Mostrando <b>{{ inicioRegistroVentas }}</b> a <b>{{ finRegistroVentas }}</b> de <b>{{ ventasFiltradas.length }}</b> ventas
+          </span>
+          <q-select
+            v-model="porPaginaVentas"
+            :options="[6, 12, 24, 48]"
+            dense
+            outlined
+            options-dense
+            style="min-width: 80px"
+            label="Por pág."
+          />
+        </div>
+        <q-pagination
+          v-model="paginaActualVentas"
+          :max="maxPaginasVentas"
+          :max-pages="5"
+          boundary-numbers
+          direction-links
+          color="primary"
+          active-color="secondary"
+          active-text-color="dark"
+          gutter="xs"
+          dense
+        />
+      </div>
     </div>
 
     <!-- Estado Vacío -->
@@ -204,11 +234,11 @@
 
     <!-- Modal: Detalle de Venta / Ticket -->
     <q-dialog v-model="mostrarModalDetalle">
-      <q-card style="min-width: 320px; max-width: 500px; border-radius: 16px;">
+      <q-card style="min-width: 320px; max-width: 500px; border-radius: 16px;" class="ticket-impresion">
         <q-card-section class="gradient-navy text-white row items-center">
           <div class="text-h6 brand-font text-gold">Ticket de Venta #{{ ventaSeleccionada?.IdVenta?.substring(0, 8) }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense v-close-popup class="no-print" />
         </q-card-section>
 
         <q-card-section v-if="ventaSeleccionada" class="q-pa-md">
@@ -222,8 +252,15 @@
           <q-list separator class="q-mb-md">
             <q-item v-for="item in detalleItems" :key="item.ProductoId" dense class="q-px-none">
               <q-item-section>
-                <q-item-label class="text-weight-bold text-primary">{{ item.ProductoNombre || item.ProductoId }}</q-item-label>
-                <q-item-label caption>{{ item.Cantidad }} x ${{ formatPrecio(item.Precio_unit) }}</q-item-label>
+                <div class="row items-center q-gutter-x-xs no-wrap">
+                  <q-item-label class="text-weight-bold text-primary ellipsis">{{ item.ProductoNombre }}</q-item-label>
+                  <q-badge v-if="item.esHistorico" color="grey-4" text-color="grey-8" class="text-caption" style="font-size: 0.62rem;">
+                    Histórico
+                  </q-badge>
+                </div>
+                <q-item-label caption>
+                  cód: {{ item.ProductoId }} &bull; {{ item.Cantidad }} x ${{ formatPrecio(item.Precio_unit) }}
+                </q-item-label>
               </q-item-section>
               <q-item-section side class="text-weight-bolder text-primary">
                 ${{ formatPrecio(item.Cantidad * item.Precio_unit) }}
@@ -258,8 +295,8 @@
             </div>
           </div>
 
-          <!-- Botones de Acción del Ticket -->
-          <div class="row q-gutter-xs">
+          <!-- Botones de Acción del Ticket (no imprimir) -->
+          <div class="row q-gutter-xs no-print">
             <q-btn
               unelevated
               class="col bg-positive text-white text-weight-bold"
@@ -334,14 +371,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import db from '../db/index.js';
 import api from '../services/api.js';
 import { useNetworkStore } from '../stores/networkStore.js';
+import { useAuthStore } from '../stores/authStore.js';
+import { useEmpresariaStore } from '../stores/empresariaStore.js';
 
 const $q = useQuasar();
 const networkStore = useNetworkStore();
+const authStore = useAuthStore();
+const empresariaStore = useEmpresariaStore();
 
 const ventas = ref([]);
 const busqueda = ref('');
@@ -361,14 +402,52 @@ const formAbono = ref({
 
 async function cargarVentas() {
   try {
+    const empId = authStore.esAdmin
+      ? null
+      : (empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria);
+
+    // Si hay conexión, descargar ventas del servidor para mantener la BD local al día
+    if (networkStore.isOnline) {
+      try {
+        const url = empId ? `/ventas?empresariaId=${empId}&limit=100` : '/ventas?limit=100';
+        const resp = await api.get(url);
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          for (const vRemota of resp.data.data) {
+            const local = await db.ventas.get(vRemota.IdVenta);
+            // Solo insertar o actualizar si no existe localmente o si ya estaba sincronizada
+            if (!local || local.synced === 1) {
+              await db.ventas.put({
+                IdVenta: vRemota.IdVenta,
+                Cliente_Id: vRemota.Cliente_Id,
+                EmpresariaId: Number(vRemota.EmpresariaId),
+                TipoVenta: vRemota.TipoVenta,
+                Estado: vRemota.Estado,
+                total: Number(vRemota.total),
+                TotalCosto: Number(vRemota.TotalCosto || 0),
+                synced: 1,
+                created_at: vRemota.created_at
+              });
+            }
+          }
+        }
+      } catch (apiErr) {
+        console.warn('Fallback a ventas locales en Dexie:', apiErr.message);
+      }
+    }
+
     const rawVentas = await db.ventas.reverse().toArray();
     const clientes = await db.clientes.toArray();
     const clienteMap = new Map();
     clientes.forEach((c) => clienteMap.set(c.IdCliente, c.Nombre));
 
+    // Filtrar por empresaria activa si no es administrador
+    const ventasFiltradasEmpresaria = (!authStore.esAdmin && empId)
+      ? rawVentas.filter((v) => Number(v.EmpresariaId) === Number(empId))
+      : rawVentas;
+
     // Hidratar con pagos y cálculo de saldos
     const ventasCompletas = [];
-    for (const v of rawVentas) {
+    for (const v of ventasFiltradasEmpresaria) {
       const pagos = await db.pagos.where('VentaId').equals(v.IdVenta).toArray();
       const totalPagado = pagos.reduce((acc, p) => acc + Number(p.Cantidad), 0);
       const saldoPendiente = Math.max(0, Number(v.total) - totalPagado);
@@ -405,11 +484,47 @@ const ventasFiltradas = computed(() => {
 });
 
 const totalIngresos = computed(() => {
-  return ventas.value.reduce((acc, v) => acc + (v.TotalPagado || 0), 0);
+  return ventasFiltradas.value.reduce((acc, v) => acc + (v.TotalPagado || 0), 0);
 });
 
 const totalPorCobrar = computed(() => {
-  return ventas.value.reduce((acc, v) => acc + (v.SaldoPendiente || 0), 0);
+  return ventasFiltradas.value.reduce((acc, v) => acc + (v.SaldoPendiente || 0), 0);
+});
+
+// Paginación reactiva para historial de ventas
+const paginaActualVentas = ref(1);
+const porPaginaVentas = ref(12);
+
+const maxPaginasVentas = computed(() => {
+  return Math.ceil(ventasFiltradas.value.length / porPaginaVentas.value) || 1;
+});
+
+const ventasPaginadas = computed(() => {
+  const start = (paginaActualVentas.value - 1) * porPaginaVentas.value;
+  return ventasFiltradas.value.slice(start, start + porPaginaVentas.value);
+});
+
+const inicioRegistroVentas = computed(() => {
+  if (ventasFiltradas.value.length === 0) return 0;
+  return (paginaActualVentas.value - 1) * porPaginaVentas.value + 1;
+});
+
+const finRegistroVentas = computed(() => {
+  return Math.min(
+    paginaActualVentas.value * porPaginaVentas.value,
+    ventasFiltradas.value.length
+  );
+});
+
+// Reset de página al cambiar filtros
+watch([busqueda, tabFiltro, porPaginaVentas], () => {
+  paginaActualVentas.value = 1;
+});
+
+watch(maxPaginasVentas, (newMax) => {
+  if (paginaActualVentas.value > newMax) {
+    paginaActualVentas.value = newMax;
+  }
 });
 
 function formatPrecio(val) {
@@ -435,10 +550,14 @@ async function verDetalleVenta(v) {
   const prodMap = new Map();
   prods.forEach((p) => prodMap.set(p.id, p.Nombre));
 
-  detalleItems.value = items.map((i) => ({
-    ...i,
-    ProductoNombre: prodMap.get(i.ProductoId)
-  }));
+  detalleItems.value = items.map((i) => {
+    const nombreEncontrado = prodMap.get(i.ProductoId);
+    return {
+      ...i,
+      ProductoNombre: nombreEncontrado || `Joya #${i.ProductoId}`,
+      esHistorico: !nombreEncontrado
+    };
+  });
   detallePagos.value = v.pagosList || [];
   mostrarModalDetalle.value = true;
 }
@@ -459,6 +578,17 @@ async function guardarAbono() {
 
     if (!cantidad || cantidad <= 0) {
       $q.notify({ type: 'warning', message: 'Ingresa un monto válido' });
+      return;
+    }
+
+    // Validar que el abono no exceda el saldo pendiente
+    const saldo = Number(v.SaldoPendiente || 0);
+    if (Number(cantidad) > saldo) {
+      $q.notify({
+        type: 'warning',
+        icon: 'warning',
+        message: `El abono ($${formatPrecio(cantidad)}) no puede ser mayor al saldo pendiente ($${formatPrecio(saldo)}).`
+      });
       return;
     }
 
@@ -496,6 +626,8 @@ async function guardarAbono() {
 
     mostrarModalAbono.value = false;
     await cargarVentas();
+    // Actualizar badge de pendientes de sync en el header
+    await networkStore.updatePendingCount();
   } catch (err) {
     $q.notify({ type: 'negative', message: 'Error al registrar abono: ' + err.message });
   }
@@ -638,6 +770,22 @@ async function exportarExcelVentas() {
     });
   }
 }
+
+watch(
+  () => empresariaStore.empresariaActiva?.IdEmpresaria,
+  () => {
+    cargarVentas();
+  }
+);
+
+watch(
+  () => networkStore.isOnline,
+  (online) => {
+    if (online) {
+      cargarVentas();
+    }
+  }
+);
 
 onMounted(() => {
   cargarVentas();

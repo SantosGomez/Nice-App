@@ -55,8 +55,25 @@
           </q-card-section>
         </q-card>
 
+        <!-- Estado de Carga de Catálogo -->
+        <div v-if="cargandoCatalogo" class="row q-col-gutter-sm animate-fade-in">
+          <div v-for="n in 8" :key="n" class="col-6 col-sm-4 col-md-4 col-lg-3">
+            <q-card flat class="rounded-borders bg-white q-pa-sm shadow-1">
+              <q-skeleton height="120px" square class="rounded-borders" />
+              <div class="q-pt-sm">
+                <q-skeleton type="text" width="60%" />
+                <q-skeleton type="text" width="90%" />
+                <div class="row items-center justify-between q-mt-sm">
+                  <q-skeleton type="text" width="40%" height="28px" />
+                  <q-skeleton type="QBtn" size="sm" />
+                </div>
+              </div>
+            </q-card>
+          </div>
+        </div>
+
         <!-- Cuadrícula de Productos -->
-        <div v-if="productosFiltrados.length > 0">
+        <div v-else-if="productosFiltrados.length > 0">
           <div class="row q-col-gutter-sm animate-stagger">
             <div
               v-for="prod in productosPaginadosGrid"
@@ -114,6 +131,7 @@
                       text-color="primary"
                       icon="add"
                       class="shadow-1"
+                      @click.stop="agregarAlCarrito(prod)"
                     />
                   </div>
                 </q-card-section>
@@ -313,7 +331,7 @@
                 :text-color="posStore.metodoPago === metodo ? 'white' : 'grey-9'"
                 :outline="posStore.metodoPago !== metodo"
                 :label="metodo"
-                @click="posStore.metodoPago = metodo"
+                @click="posStore.setMetodoPago(metodo)"
               />
             </div>
 
@@ -365,7 +383,7 @@
     </div>
 
     <!-- Diálogo de Asignar / Registrar Cliente -->
-    <q-dialog v-model="mostrarDialogoCliente">
+    <q-dialog v-model="mostrarDialogoCliente" @hide="limpiarModalCliente">
       <q-card style="min-width: 320px; max-width: 480px; border-radius: 16px;">
         <q-card-section class="gradient-navy text-white row items-center">
           <div class="text-h6 brand-font text-gold">Seleccionar Cliente</div>
@@ -424,12 +442,12 @@
     </q-dialog>
 
     <!-- Diálogo Escáner QR HTML5 -->
-    <q-dialog v-model="mostrarScanner">
+    <q-dialog v-model="mostrarScanner" @hide="cerrarEscaner">
       <q-card style="min-width: 320px; max-width: 500px; border-radius: 16px;">
         <q-card-section class="gradient-navy text-white row items-center">
           <div class="text-h6 brand-font text-gold">Escanear Joya Nice</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup @click="cerrarEscaner" />
+          <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
         <q-card-section class="q-pa-md text-center">
           <div id="reader" style="width: 100%; min-height: 280px;"></div>
@@ -442,7 +460,7 @@
 
     <!-- Diálogo: Comprobante / Ticket de Venta y Apartado -->
     <q-dialog v-model="mostrarModalTicket" persistent>
-      <q-card style="min-width: 340px; max-width: 480px; border-radius: 20px;" class="overflow-hidden bg-white">
+      <q-card style="min-width: 340px; max-width: 480px; border-radius: 20px;" class="overflow-hidden bg-white ticket-impresion">
         <q-card-section class="gradient-navy text-white text-center q-py-md">
           <q-icon name="diamond" size="36px" color="secondary" class="q-mb-xs" />
           <div class="text-h6 brand-font text-gold">
@@ -496,8 +514,8 @@
             </div>
           </div>
 
-          <!-- Campo para WhatsApp -->
-          <div class="q-mb-sm">
+          <!-- Campo para WhatsApp (no imprimir) -->
+          <div class="q-mb-sm no-print">
             <label class="text-caption text-weight-bold text-grey-8">WhatsApp del Cliente:</label>
             <q-input
               v-model="telefonoEnvioTicket"
@@ -511,8 +529,8 @@
           </div>
         </q-card-section>
 
-        <!-- Botones de Acción -->
-        <q-card-actions align="center" class="q-pa-md q-pt-none column q-gutter-y-xs">
+        <!-- Botones de Acción (no imprimir) -->
+        <q-card-actions align="center" class="q-pa-md q-pt-none column q-gutter-y-xs no-print">
           <q-btn
             unelevated
             class="full-width text-weight-bold bg-positive text-white q-py-sm"
@@ -598,13 +616,31 @@ const productos = ref([]);
 const clientes = ref([]);
 const filtroBusqueda = ref('');
 const categoriaSeleccionada = ref('Todos');
-const categorias = ref(['Todos', 'Collares', 'Aretes', 'Pulseras', 'Anillos', 'Dijes', 'Relojes', 'Accesorios']);
+
+// Categorías base con soporte dinámico para colecciones del catálogo
+const categorias = computed(() => {
+  const base = ['Todos', 'Collares', 'Aretes', 'Pulseras', 'Anillos', 'Dijes', 'Relojes', 'Accesorios'];
+  const dinamicas = new Set();
+  productos.value.forEach((p) => {
+    if (p.Categoria && p.Categoria.trim() && !base.includes(p.Categoria.trim())) {
+      dinamicas.add(p.Categoria.trim());
+    }
+  });
+  return [...base, ...Array.from(dinamicas).sort()];
+});
+
 const ticketVisible = ref(false);
 let ticketObserver = null;
+const cargandoCatalogo = ref(false);
 
 const mostrarDialogoCliente = ref(false);
 const busquedaCliente = ref('');
 const nuevoCliente = ref({ Nombre: '', Telefono: '', Nota: '' });
+
+function limpiarModalCliente() {
+  busquedaCliente.value = '';
+  nuevoCliente.value = { Nombre: '', Telefono: '', Nota: '' };
+}
 
 // Ticket y WhatsApp
 const mostrarModalTicket = ref(false);
@@ -616,6 +652,7 @@ let html5QrCode = null;
 
 // Cargar catálogo local y stock actualizado
 async function cargarCatalogoLocal() {
+  cargandoCatalogo.value = true;
   try {
     const empId = empresariaStore.empresariaActiva?.IdEmpresaria || authStore.usuario?.IdEmpresaria || 2;
     if (networkStore.isOnline) {
@@ -667,6 +704,8 @@ async function cargarCatalogoLocal() {
     clientes.value = await db.clientes.toArray();
   } catch (err) {
     console.error('Error cargando datos locales:', err);
+  } finally {
+    cargandoCatalogo.value = false;
   }
 }
 
@@ -749,6 +788,16 @@ function formatPrecio(val) {
 }
 
 function agregarAlCarrito(producto) {
+  if (producto.Stock <= 0) {
+    $q.notify({
+      type: 'warning',
+      icon: 'inventory_2',
+      message: `"${producto.Nombre}" no tiene stock disponible en tu inventario.`,
+      position: 'top',
+      timeout: 2500
+    });
+    return;
+  }
   posStore.agregarProducto(producto, 1);
   $q.notify({
     type: 'positive',
@@ -766,6 +815,27 @@ function seleccionarCliente(cliente) {
 async function crearYAsignarCliente() {
   if (!nuevoCliente.value.Nombre || nuevoCliente.value.Nombre.trim() === '') {
     $q.notify({ type: 'warning', message: 'El nombre es obligatorio' });
+    return;
+  }
+
+  const nombreLimpio = nuevoCliente.value.Nombre.trim().toLowerCase();
+  const telLimpio = nuevoCliente.value.Telefono ? nuevoCliente.value.Telefono.trim() : null;
+
+  // Verificación preventiva de duplicados en el directorio local
+  const clienteExistente = clientes.value.find(
+    (c) =>
+      c.Nombre?.trim().toLowerCase() === nombreLimpio &&
+      (!telLimpio || !c.Telefono || c.Telefono.trim() === telLimpio)
+  );
+
+  if (clienteExistente) {
+    $q.notify({
+      type: 'info',
+      icon: 'person',
+      message: `El cliente "${clienteExistente.Nombre}" ya existe en tu directorio y fue asignado.`,
+      timeout: 3000
+    });
+    seleccionarCliente(clienteExistente);
     return;
   }
 

@@ -382,7 +382,8 @@
         row-key="id"
         flat
         bordered
-        :pagination="{ rowsPerPage: 15 }"
+        v-model:pagination="paginacionTabla"
+        :rows-per-page-options="[10, 15, 25, 50, 100]"
       >
         <template #body-cell-Stock="props">
           <q-td :props="props">
@@ -1045,18 +1046,34 @@ const networkStore = useNetworkStore()
 const productos = ref([])
 const filtroBusqueda = ref('')
 const categoriaSeleccionada = ref('Todos')
-const categorias = ref([
-  'Todos',
-  'Collares',
-  'Aretes',
-  'Pulseras',
-  'Anillos',
-  'Dijes',
-  'Relojes',
-  'Accesorios',
-])
+
+// Categorías base y dinámicas extraídas del catálogo real
+const categorias = computed(() => {
+  const base = [
+    'Todos',
+    'Collares',
+    'Aretes',
+    'Pulseras',
+    'Anillos',
+    'Dijes',
+    'Relojes',
+    'Accesorios',
+  ]
+  const dinamicas = new Set()
+  productos.value.forEach((p) => {
+    if (p.Categoria && p.Categoria.trim() && !base.includes(p.Categoria.trim())) {
+      dinamicas.add(p.Categoria.trim())
+    }
+  })
+  return [...base, ...Array.from(dinamicas).sort()]
+})
+
 const vistaModo = ref('grid')
 const scopeInventario = ref('mi_stock')
+const paginacionTabla = ref({
+  page: 1,
+  rowsPerPage: 15
+})
 
 // Modales
 const mostrarModalEntrada = ref(false)
@@ -1215,6 +1232,14 @@ const finRegistroGrid = computed(() => {
 // Al cambiar filtros o selector de elementos por página, volver a la página 1
 watch([filtroBusqueda, categoriaSeleccionada, porPaginaGrid], () => {
   paginaActualGrid.value = 1
+  paginacionTabla.value.page = 1
+})
+
+// Al cambiar el alcance (Mi Stock / Agotados / Catálogo Global), resetear categoría y paginación
+watch(scopeInventario, () => {
+  categoriaSeleccionada.value = 'Todos'
+  paginaActualGrid.value = 1
+  paginacionTabla.value.page = 1
 })
 
 // Si la cantidad de páginas disminuye por debajo de la actual, ajustar

@@ -327,17 +327,30 @@
                 <label class="text-caption text-weight-bold text-grey-8">
                   {{ editando ? 'Cambiar Contraseña (opcional)' : 'Contraseña de Acceso *' }}
                 </label>
-                <q-btn
-                  v-if="editando && !mostrarCampoPassword"
-                  flat
-                  dense
-                  no-caps
-                  size="sm"
-                  color="primary"
-                  label="Asignar nueva contraseña"
-                  icon="key"
-                  @click="mostrarCampoPassword = true"
-                />
+                <div class="row q-gutter-x-xs">
+                  <q-btn
+                    v-if="!editando || mostrarCampoPassword"
+                    flat
+                    dense
+                    no-caps
+                    size="sm"
+                    color="secondary"
+                    label="Generar aleatoria"
+                    icon="auto_awesome"
+                    @click="generarPasswordAleatoria"
+                  />
+                  <q-btn
+                    v-if="editando && !mostrarCampoPassword"
+                    flat
+                    dense
+                    no-caps
+                    size="sm"
+                    color="primary"
+                    label="Asignar nueva contraseña"
+                    icon="key"
+                    @click="mostrarCampoPassword = true"
+                  />
+                </div>
               </div>
 
               <q-input
@@ -513,10 +526,36 @@ function editarUsuario(u) {
   mostrarModal.value = true;
 }
 
+function generarPasswordAleatoria() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+  let pass = '';
+  for (let i = 0; i < 8; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  formUsuario.value.Password = pass;
+  showPassModal.value = true;
+  $q.notify({
+    type: 'info',
+    icon: 'vpn_key',
+    message: `Contraseña generada: ${pass}`,
+    position: 'top',
+    timeout: 4000
+  });
+}
+
 async function guardarUsuario() {
   const f = formUsuario.value;
   if (!f.Nombre || !f.EIN) {
     $q.notify({ type: 'warning', message: 'Nombre y EIN son obligatorios' });
+    return;
+  }
+
+  if (!editando.value && (!f.Password || f.Password.trim().length < 4)) {
+    $q.notify({
+      type: 'warning',
+      icon: 'lock',
+      message: 'La contraseña es obligatoria para nuevos usuarios (mínimo 4 caracteres)'
+    });
     return;
   }
 
@@ -555,7 +594,7 @@ async function guardarUsuario() {
         PorcentajeDescuento: Number(f.PorcentajeDescuento),
         RolId: f.RolId,
         Estado: f.Estado,
-        Password: f.Password ? f.Password.trim() : '123456'
+        Password: f.Password.trim()
       };
 
       const res = await api.post('/usuarios', payload);
@@ -644,8 +683,10 @@ function colorRol(rol) {
 }
 
 function abrirWhatsApp(tel) {
-  const num = tel.replace(/\D/g, '');
-  window.open(`https://wa.me/52${num}`, '_blank');
+  const telLimpio = String(tel || '').replace(/\D/g, '');
+  if (!telLimpio) return;
+  const num = telLimpio.length === 10 ? '52' + telLimpio : telLimpio;
+  window.open(`https://wa.me/${num}`, '_blank');
 }
 
 onMounted(async () => {

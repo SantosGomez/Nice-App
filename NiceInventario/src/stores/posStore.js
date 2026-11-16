@@ -109,6 +109,16 @@ export const usePosStore = defineStore('pos', {
     },
 
     /**
+     * Define el método de pago y limpia el efectivo recibido si no aplica.
+     */
+    setMetodoPago(metodo) {
+      this.metodoPago = metodo;
+      if (metodo !== 'Efectivo') {
+        this.montoRecibido = 0;
+      }
+    },
+
+    /**
      * Vacía completamente el carrito.
      */
     limpiarCarrito() {
