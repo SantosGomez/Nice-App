@@ -1,14 +1,15 @@
 # 🧠 MEMORY — Estado y Próximos Pasos · Joyería Nice POS
-> Límite: 50 líneas. Actualizado: 2026-11-16 (Plan de 4 Sprints Completado)
+> Límite: 50 líneas. Actualizado: 2026-11-16 (TiDB Cloud + Trazabilidad Clientes)
 
-## 📌 Proyecto
-POS + Inventario **Offline-First** (Vue 3 + Quasar + Dexie.js) con backend Express 5 + MySQL en Railway.
+## 📌 Proyecto y Base de Datos
+POS + Inventario **Offline-First** (Vue 3 + Quasar + Dexie.js) con backend Express 5 conectado a **TiDB Cloud** (MySQL compatible con SSL activo).
 
-## ✅ Sprints 1, 2, 3 y 4 Completados
-- **POS**: Scanner QR con cierre limpio de cámara (`@hide`), bloqueo de stock <= 0, botón `+` sin doble disparo (`@click.stop`), skeleton loader en carga, limpieza de modales, reseteo de efectivo al cambiar método de pago, chips de categorías dinámicos y deduplicación preventiva de clientes.
-- **Inventario**: Impresión térmica `@media print`, reset de categorías/paginación al cambiar scope, categorías dinámicas en filtros y paginación reactiva en vista tabla con selector de filas.
-- **Ventas**: Paginación completa (`q-pagination`), sincronización remota hacia Dexie, validación estricta de abonos (`monto <= saldo`), métricas reactivas y fallback descriptivo con badge `Histórico` para joyas retiradas.
-- **Clientes & Usuarios**: Aislamiento por `EmpresariaId`, WhatsApp normalizado internacional, contraseñas seguras y prevención de duplicados.
+## ✅ Hitos y Mejoras Recientes
+- **Sprints 1 al 4**: Estabilización de cámara QR, bloqueo de stock, validación de abonos, impresión térmica `@media print`, sync bidireccional, chips dinámicos, paginación reactiva, deduplicación de clientes y badges para productos históricos.
+- **TiDB Cloud & Trazabilidad Clientes**:
+  - DDL aplicado: `created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP` en tabla `clientes`.
+  - Backend (`clienteModel.js`): soporte de `created_at` en CRUD y corrección de agregación compatible con `only_full_group_by` en `getHistorial`.
+  - Frontend (`db/index.js` Dexie v3, `ClientesPage.vue`, `IndexPage.vue`): persistencia de fecha de alta tanto online como offline.
 
 ## 📊 Estado de Módulos
 | Módulo | Estado |
@@ -16,12 +17,12 @@ POS + Inventario **Offline-First** (Vue 3 + Quasar + Dexie.js) con backend Expre
 | Login JWT / Roles / Permisos | ✅ Funcional |
 | POS (Venta Directa / Apartado / Ticket) | ✅ Funcional |
 | Catálogo / Inventario / Kardex / QR | ✅ Funcional |
-| Clientes (Directorio A-Z + Kardex + WhatsApp) | ✅ Funcional |
+| Clientes (Alta, Trazabilidad `created_at`, Kardex) | ✅ Funcional |
 | Historial Ventas + Abonos Offline-First | ✅ Funcional |
-| Control Usuarios & Empresarias | ✅ Funcional |
-| Sync Bidireccional Dexie ↔ MySQL | ✅ Funcional |
+| Base de Datos TiDB Cloud (SSL) | ✅ Conectada y sincronizada |
+| Sync Bidireccional Dexie ↔ TiDB Cloud | ✅ Funcional |
 
 ## 🚀 Próximas Mejoras Opcionales
-1. Configuración de manifest PWA para instalación como app nativa en tablet.
-2. Soporte para impresión directa vía WebBluetooth para impresoras térmicas ESC/POS.
-3. Exportación de reportes de cortes de caja en PDF/Excel por período.
+1. Configuración de manifest PWA para instalación en tablet/móvil.
+2. Impresión directa vía WebBluetooth para impresoras térmicas ESC/POS.
+3. Exportación de cortes de caja en PDF/Excel por período.
